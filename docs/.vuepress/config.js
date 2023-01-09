@@ -1,5 +1,5 @@
 import { defaultTheme } from '@vuepress/theme-default'
-// import { mixTheme } from 'vuepress-theme-mix'
+import { searchPlugin } from '@vuepress/plugin-search'
 
 export default {
   title: 'ilovesshan',
@@ -7,6 +7,19 @@ export default {
   markdown: {
     lineNumbers: true,
   },
+  plugins: [
+    searchPlugin({
+      // 配置项
+      locales: {
+        '/': {
+          placeholder: 'Search',
+        },
+        '/zh/': {
+          placeholder: '搜索',
+        },
+      },
+    }),
+  ],
   theme: defaultTheme({
     // 默认主题配置
     navbar: [
