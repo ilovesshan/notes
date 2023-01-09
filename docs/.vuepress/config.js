@@ -27,35 +27,38 @@ export default {
       {
         text: '前端',
         children: [
-          { text: 'vue3', link: '/pages/vue3.md' }
+          { text: 'vue3', link: '/pages/frontend/vue3.md' }
         ]
       },
       {
         text: '移动端',
         children: [
-          { text: 'flutter', link: '/pages/flutter.md' },
-          { text: 'android', link: '/pages/android.md' }
+          { text: 'android基础', link: '/pages/mobile/android-base.md' },
+          { text: 'android高级', link: '/pages/mobile/android-advanced.md' },
+          { text: 'flutter', link: '/pages/mobile/flutter.md' },
         ]
       },
       {
         text: '后端',
         children: [
-          { text: 'spring', link: '/pages/spring.md' },
-          { text: 'springMvc', link: '/pages/springMvc.md' },
-          { text: 'myBatis', link: '/pages/myBatis.md' },
+          { text: 'java基础', link: '/pages/backend/java-base.md' },
+          { text: 'java高级', link: '/pages/backend/java-advanced.md' },
+          { text: 'spring', link: '/pages/backend/spring.md' },
+          { text: 'springMvc', link: '/pages/backend/springMvc.md' },
+          { text: 'myBatis', link: '/pages/backend/myBatis.md' },
         ]
       },
       {
         text: '数据库',
         children: [
-          { text: 'mysql', link: '/pages/mysql.md' },
+          { text: 'mysql', link: '/pages/database/mysql.md' },
         ]
       },
       {
         text: '部署工具',
         children: [
-          { text: 'linux', link: '/pages/linux.md' },
-          { text: 'nginx', link: '/pages/nginx.md' },
+          { text: 'linux', link: '/pages/deploy/linux.md' },
+          { text: 'nginx', link: '/pages/deploy/nginx.md' },
         ]
       },
       {
