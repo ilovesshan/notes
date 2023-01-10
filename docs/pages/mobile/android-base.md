@@ -262,7 +262,7 @@ scaleType设置缩放类型
 
 ## Activity 组件
 
-### 1、Activity 相关方法
+### 1、Activity 状态和生命周期
 
 #### Activity三种状态
 
@@ -270,7 +270,7 @@ scaleType设置缩放类型
 + `paused`: 当`Activity`失去焦点但仍对用户可见(如在它之上有另一个透明的`Activity`或`Toast`、`AlertDialog`等弹出窗口时)它处于暂停状态。暂停的`Activity`仍然是存活状态，但是当系统内存极小时可以被系统杀掉。
 + `stoped`： 完全被另一个`Activity`遮挡时处于停止状态，它仍然在内存中保留着所有的状态和成员信息。只是对用户不可见，当其他地方需要内存时它往往被系统杀掉。
 
-#### Activity 生命周期函数
+#### Activity 生命周期
 
 + `onCreate`：当`Activity`被实例化时系统会调用，整个生命周期只会执行一次，在 `onCreate`中通常做一些初始化工作，例如：为 `Activity` 设置布局文件，为按钮设置事件监听等。
 + `onStart`：当 `Activity` 可见，未获得用户焦点不能交互时调用。
@@ -334,3 +334,273 @@ startActivity(intent);
 `singleTask`：这个Activity只能有一个，且作为它所在的Task的root Activity。
 
 `singleInstance`：这个`Activity`只能有一个，且它所在的Task也只能有它这一个Activity。
+
+
+
+### 3、Intent 意图
+
+intent是一个消息传递对象，主要用作与组件之间传递消息，但是常见的使用用例主要包含三种：
+
++ 启动 Activity
++ 启动 广播
++ 启动 服务
+
+#### 显示Intent和隐式Intent
+
+显示Intent相对来说比较直接，可以通过代码直接观察到目标Activity的全限定名称或者组件类对象。
+
+```java
+// 方式一
+Intent intent = new Intent(ActivityFrom.this, ActivityTo.class);
+
+// 方式二
+Intent intent = new Intent();
+intent.setComponent(new ComponentName(ActivityFrom.this, ActivityTo.class));
+
+// 方式三
+Intent intent = new Intent();
+intent.setClassName(ActivityFrom.this, "com.ilovesshan.a06_activity.ActivityTo");
+```
+
+
+
+隐式Intent相对来说比隐含，不能通过代码直接观察到目标Activity的信息，隐式Intent主要通过 `Action`和 `Category`来确定目标Activity。
+
+一些常见的 `Action`字符串：
+
++ `Intent.ACTION_DIAL` 打电话 
++ `Intent.ACTION_SENDTO` 发送短信
++ `Intent.ACTION_VIEW` 加载网址
+
+```java
+// 给15112345678打电话
+Intent intent = new Intent();
+intent.setAction(Intent.ACTION_DIAL);
+intent.setData(Uri.parse("tel:15112345678"));
+startActivity(intent);
+```
+
+
+
+```java
+// 给15112345678发送当前时间
+Intent intent = new Intent();
+intent.setAction(Intent.ACTION_SENDTO);
+intent.setData(Uri.parse("sms:15112345678"));
+intent.putExtra("sms_body", new Date().toString());
+startActivity(intent);
+```
+
+
+
+```java
+// 访问学习笔记主页
+Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://ilovesshan.github.io/"));
+startActivity(intent);
+```
+
+
+
+```java
+// 访问其他模块的Activity，通过 action 和 category进行匹配
+Intent intent = new Intent();
+intent.setAction("com.ilovesshan.android_base.ScrollViewActivity");
+intent.addCategory(Intent.CATEGORY_DEFAULT);
+if (intent.resolveActivity(getPackageManager()) != null) {
+    startActivity(intent);
+} else {
+    Toast.makeText(JumpSystemActivity.this, "抱歉，未找到目标界面", Toast.LENGTH_LONG).show();
+}
+```
+
+```xml
+<activity android:name=".ScrollViewActivity" android:exported="true">
+    <intent-filter>
+        <action android:name="com.ilovesshan.android_base.ScrollViewActivity" />
+        <category android:name="android.intent.category.DEFAULT" />
+    </intent-filter>
+</activity>
+```
+
+
+
+#### 显示Intent和隐式Intent区别
+
+显示Intent： 知道目标组件名称的情况下使用，显示Intent很明确的知道要激活那个组件，一般用作App内部跳转。
+
+隐式Intent：通过清单文件中通过配置 `intent-filter`标签来实现，使用场景：不知道目标组件的名称，当要激活另一个Activity时(看不到源码)，这种情况只能使用隐式Intent，一般是不同应用程序之间的跳转，根据Activity配置的意图过滤器建一个意图，让意图中的各项参数的值都跟过滤器匹配，这样就可以激活其他应用中的Activity。
+
+### 4、Activity传数据通信
+
+通过`intent`做为两个`Activity`之间通信的桥梁，如果是简单数据可以直接通过`intent`携带，如果是复杂数据则通过`Bundle`对象对数据进行打包，再通过 `intent`进行传递。
+
+
+
+#### 接收目标Activity返回的数据
+
+```java
+mIntentActivityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+    // 返回状态码
+    int resultCode = result.getResultCode();
+    // 目标Activify返回的数据
+    Bundle bundle = result.getData().getExtras();
+    String userId = bundle.getString("userId");
+    String username = bundle.getString("username");
+});
+
+// 进行页面跳转, 如果需要传递数据 直接放在Intent中即可
+mIntentActivityResultLauncher.launch(new Intent(RequestActivity.this, ResponseActivity.class));
+```
+
+
+
+#### 向上一个Activity返回数据
+
+```java
+// 构建Bundle对象
+Bundle bundle = new Bundle();
+bundle.putString("userId", "I123456");
+bundle.putString("username", "ilovesshan");
+Intent intent = new Intent();
+intent.putExtras(bundle);
+// Activity.RESULT_OK 状态码，用作接收返回值界面进行判断做一些不同的业务逻辑
+setResult(Activity.RESULT_OK, intent);
+finish();
+```
+
+
+
+### 5、获取资源文件信息
+
+`string.xml`新增
+
+```xml
+<resources>
+    <string name="username">ilovesshan</string>
+    <string name="userid">i123456</string>
+</resources>
+```
+
+在`Activity`中获取
+
+```java
+String userid = getResources().getString(R.string.userid);
+String username = getResources().getString(R.string.username);
+```
+
+在其他`java`文件（必须有`Context或pplication`）中获取
+
+```java
+String userid = context.getString(R.string.userid); 
+String username = application.getString(R.string.username); 
+```
+
+
+
+### 6、获取元数据信息
+
+清单文件中配置
+
+```xml
+<activity  android:name=".MetaDataActivity" android:exported="true">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+
+    <meta-data android:name="appId" android:value="efefeddrtrfsdsdrytthfdfert4"/>
+    <meta-data android:name="appPackage" android:value="com.ilovesshan.a06_activity"/>
+</activity>
+```
+
+
+
+`Activity` 中获取 `meta-data` 数据
+
+```java
+ActivityInfo activityInfo = getPackageManager().getActivityInfo(getComponentName(), PackageManager.GET_META_DATA);
+Bundle bundle = activityInfo.metaData;
+String appId = bundle.getString("appId");
+String appPackage = bundle.getString("appPackage");
+```
+
+`Service` 中获取 `meta-data` 数据
+
+```java
+ComponentName componentName = new ComponentName(Activity.class, Receiver.class);
+ServiceInfo serInfo = mContext.getPackageManager().getServiceInfo(componentName, PackageManager.GET_META_DATA);
+Bundle bundle = activityInfo.metaData;
+String appId = bundle.getString("appId");
+String appPackage = bundle.getString("appPackage");
+```
+
+`Recriver` 中获取 `meta-data` 数据
+
+```java
+ComponentName componentName = new ComponentName(Activity.class, Service.class);
+ActivityInfo Info = mContext.getPackageManager().getReceiverInfo(componentName, PackageManager.GET_META_DATA);
+Bundle bundle = activityInfo.metaData;
+String appId = bundle.getString("appId");
+String appPackage = bundle.getString("appPackage");
+```
+
+
+
+### 7、配置应用快捷方式
+
+```xml
+<activity  android:name=".LoginActivity"  android:exported="true">
+    <intent-filter>
+        <action android:name="android.intent.action.LoginActivity" />
+        <category android:name="android.intent.category.DEFAULT" />
+    </intent-filter>
+</activity>
+
+<activity  android:name=".ScanActivity"  android:exported="true">
+    <intent-filter>
+        <action android:name="android.intent.action.ScanActivity" />
+        <category android:name="android.intent.category.DEFAULT" />
+    </intent-filter>
+</activity>
+
+
+<activity android:name=".MetaDataActivity" android:exported="true">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+    <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+</activity>
+```
+
+```xml
+<resources>
+    <string name="login_long">登录</string>
+    <string name="login_short">登录</string>
+    <string name="scan_long">扫一扫</string>
+    <string name="scan_short">扫一扫</string>
+</resources>
+```
+
+
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts.xml xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+              android:icon="@drawable/login"
+              android:shortcutId="login"
+              android:shortcutLongLabel="@string/login_long"
+              android:shortcutShortLabel="@string/login_short">
+        <intent android:action="android.intent.action.LoginActivity" />
+    </shortcut>
+    <shortcut
+              android:icon="@drawable/scan"
+              android:shortcutId="scan"
+              android:shortcutLongLabel="@string/scan_long"
+              android:shortcutShortLabel="@string/scan_short">
+        <intent android:action="android.intent.action.ScanActivity" />
+    </shortcut>
+</shortcuts.xml>
+```
+
