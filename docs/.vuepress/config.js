@@ -3,10 +3,13 @@ import { searchPlugin } from '@vuepress/plugin-search'
 
 export default {
   title: 'ilovesshan',
+
   description: 'Keep track of my study notes',
+
   markdown: {
     lineNumbers: true,
   },
+
   plugins: [
     searchPlugin({
       // 配置项
@@ -20,8 +23,14 @@ export default {
       },
     }),
   ],
+
+  head: [
+    ["link", { rel: "icon", href: "/hero.png" }]
+  ],
+
   theme: defaultTheme({
     // 默认主题配置
+    logo: "/hero.png",
     navbar: [
       { text: '首页', link: '/' },
       {
