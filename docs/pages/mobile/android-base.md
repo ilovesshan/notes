@@ -260,6 +260,548 @@ scaleType设置缩放类型
 
 
 
+### 4、中级控件
+
+#### Drawable图片资源
+
+​		图片资源是最简单的Drawable资源.只要把*.png,*.jpg,*.gif 等格式的图片放入目录下面就可以使用，Android SDK会在编译时自动加载图片，并在R资源清单中生成索引。
+
+Drawable图片资源根据屏幕分辨率做适配
+
+| 密度类型             | 分辨率(px)  | 屏幕密度(dpi) |
+| -------------------- | ----------- | ------------- |
+| （低密度）ldpi       | 240 x 320   | 120           |
+| （中密度）mdpi       | 320 x 480   | 160           |
+| （高密度）hdpi       | 480 x 800   | 240           |
+| （超高密度）xhdpi    | 720 x 1280  | 320           |
+| （超超高密度）xxhdpi | 1080 x 1920 | 480           |
+
+
+
+#### shape形状
+
+可以通过shape来绘制一些例如矩形，椭圆包含边框颜色，背景渐变色，形状大小以及边距等等。
+
+- shape
+
+  形状可绘制对象。这必须是根元素。android:shape取值：rectangle(默认)，oval，line，ring四种。
+
+- corners
+
+  为形状产生圆角。仅当形状为矩形时适用。
+
+- gradient
+
+  填充形状的渐变色，android:type取值：linear(默认，线性渐变)，radial(径向渐变)，sweep(流线型渐变)
+
+- padding
+
+  要应用到包含视图元素的内边距（这会填充视图内容的位置，而非形状）。
+
+- size
+
+  形状的大小。
+
+- solid
+
+  用于填充形状的纯色。
+
+- stroke
+
+  形状的笔划中线(边框)。
+
+圆形
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#8ce605" />
+    <padding android:right="10dp" android:left="10dp" android:top="10dp" android:bottom="10dp"/>
+</shape>
+```
+
+矩形
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#8ce605" />
+    <stroke android:width="2dp" android:color="#00e6de" />
+    <corners android:radius="20dp" />
+</shape>
+```
+
+背景渐变
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient android:type="linear" android:startColor="#38e615" android:endColor="#05e6e6"/>
+</shape>
+```
+
+
+
+#### CheckBox
+
+```xml
+<!-- 通过  android:button属性进行自定义选中和非选择图形 -->
+<CheckBox
+          android:id="@+id/cb_is_agree"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:button="@drawable/checkbox_selector"
+          android:text="是否同意协议" />
+```
+
+```java
+// 设置选中监听事件
+checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {});
+```
+
+
+
+#### RadioGroup
+
+```xml
+<RadioGroup
+            android:id="@+id/rg_gender"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+    <RadioButton
+                 android:tag="MALE"
+                 android:layout_width="0dp"
+                 android:layout_height="wrap_content"
+                 android:layout_weight="1"
+                 android:button="@drawable/checkbox_selector"
+                 android:padding="10dp"
+                 android:text="男" />
+
+    <RadioButton
+                 android:tag="FEMALE"
+                 android:layout_width="0dp"
+                 android:layout_height="wrap_content"
+                 android:layout_weight="1"
+                 android:button="@drawable/checkbox_selector"
+                 android:padding="10dp"
+                 android:text="女" />
+
+</RadioGroup>
+```
+
+```java
+// 设置选中监听事件
+((RadioGroup) findViewById(R.id.rg_gender)).setOnCheckedChangeListener((group, checkedIndex) -> {
+    // 通过索引获取被选中的元素
+    RadioButton selectedRadioButton = (RadioButton) group.getChildAt(checkedIndex - 1);
+    Toast.makeText(RadioGroupActivity.this, selectedRadioButton.getTag().toString(), Toast.LENGTH_SHORT).show();
+});
+```
+
+
+
+#### Switch
+
+```xml
+<Switch
+        android:id="@+id/sw_is_agree"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="同意协议?" />
+```
+
+```java
+// 设置选中监听事件
+((Switch) findViewById(R.id.sw_is_agree)).setOnCheckedChangeListener((buttonView, isChecked) -> {
+    String checkResult = isChecked ? "选中啦" : "未选中";
+    Toast.makeText(SwitchBoxActivity.this, checkResult, Toast.LENGTH_SHORT).show();
+});
+```
+
+自定义Switch样式，实现IOS风格。
+
+Switch 主要有两个属性构成：上面圆形的滑块和下面的滑道。 android: thumb 对应的滑块 ，android: track 对应的滑道。
+
++ 定义滑块
+
+  `switch_thumb_selector.xml`
+
+  ```xml
+  <?xml version="1.0" encoding="utf-8"?>
+  <selector xmlns:android="http://schemas.android.com/apk/res/android">
+      <item android:drawable="@drawable/switch_thumb_selected" android:state_checked="true" />
+      <item android:drawable="@drawable/switch_thumb_normal" />
+  </selector>
+  ```
+
+  `switch_thumb_selected`
+
+  ```xml
+  <?xml version="1.0" encoding="utf-8"?>
+  <shape xmlns:android="http://schemas.android.com/apk/res/android"
+         android:shape="oval">
+      <solid android:color="#ffffff" />
+      <size
+            android:width="30dp"
+            android:height="30dp" />
+  </shape>
+  ```
+
+  `switch_thumb_normal`
+
+  ```xml
+  <?xml version="1.0" encoding="utf-8"?>
+  <shape android:shape="oval" xmlns:android="http://schemas.android.com/apk/res/android">
+      <solid android:color="#ffffff"/>
+      <size android:height="30dp" android:width="30dp"/>
+  </shape>
+  ```
+
+  
+
++ 定义滑道
+
+  `switch_track_selector`
+
+  ```xml
+  <?xml version="1.0" encoding="utf-8"?>
+  <selector xmlns:android="http://schemas.android.com/apk/res/android">
+      <item android:drawable="@drawable/switch_track_selected" android:state_checked="true" />
+      <item android:drawable="@drawable/switch_track_normal" />
+  </selector>
+  ```
+
+  `switch_track_selected`
+
+  ```xml
+  <?xml version="1.0" encoding="utf-8"?>
+  <shape xmlns:android="http://schemas.android.com/apk/res/android">
+      <corners android:radius="80dp"/>
+      <solid android:color="#00ff00"/>
+      <size android:width="60dp" android:height="30dp"/>
+  </shape>
+  ```
+
+  `switch_track_normal`
+
+  ```xml
+  <?xml version="1.0" encoding="utf-8"?>
+  <shape xmlns:android="http://schemas.android.com/apk/res/android">
+      <corners android:radius="80dp"/>
+      <solid android:color="#c0c0c0"/>
+      <size android:width="60dp" android:height="30dp"/>
+  </shape>
+  
+  ```
+
+  
+
++ 使用
+
+  ```xml
+  <Switch
+          android:id="@+id/sw_is_agree"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:thumb="@drawable/switch_thumb_selector"
+          android:track="@drawable/switch_track_selector"
+          />
+  ```
+
+  
+
+#### EditText
+
+```xml
+<EditText
+          android:id="@+id/et_password"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:background="@drawable/edit_text_selector"
+          android:hint="请输入密码"
+          android:inputType="numberPassword"
+          />
+```
+
+自定义样式
+
+```xml
+<!-- edit_text_selector -->
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/edit_text_focus" android:state_focused="true" />
+    <item android:drawable="@drawable/edit_text_normal" />
+</selector>
+
+
+<!-- edit_text_focus -->
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <stroke android:width="1dp" android:color="#00ff00" />
+    <corners android:radius="5dp" />
+    <padding android:left="10dp" android:top="5dp" android:bottom="5dp"/>
+</shape>
+
+
+<!-- edit_text_normal -->
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <stroke android:width="1dp" android:color="#eeeeee" />
+    <corners android:radius="5dp" />
+    <padding android:left="10dp" android:top="5dp" android:bottom="5dp"/>
+</shape>
+```
+
+
+
+```java
+/**
+* @param editText 目标
+* @param hintText 设置hint文字
+* @param hintSize hint 文字大小
+*/
+public void setEditTextHintTextSize(EditText editText, int hintSize, String hintText) {
+    // 新建一个可以添加属性的文本对象
+    SpannableString ss = new SpannableString(hintText);
+    // 新建一个属性对象,设置文字的大小
+    AbsoluteSizeSpan ass = new AbsoluteSizeSpan(hintSize, true);
+    // 附加属性到文本
+    ss.setSpan(ass, 0, ss.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    // 设置hint
+    editText.setHint(ss);
+}
+
+
+/**
+* @param editText 目标
+* @param hintText 设置hint文字
+* @param color    设置hint颜色
+*/
+static void setEditTextHintTextColor(EditText editText, String hintText, String color) {
+    SpannableString ss = new SpannableString(hintText);
+    ForegroundColorSpan foregroundColorSpan = new ForegroundColorSpan(Color.parseColor(color));
+    ss.setSpan(foregroundColorSpan, 0, hintText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    editText.setText(ss);
+}
+```
+
+点击空白区域关闭软键盘并让EditText释放资源
+
+```java
+public class EditTextActivity extends AppCompatActivity {
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        switch (ev.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                //获取当前获得焦点的View
+                View view = getCurrentFocus();
+                //调用方法判断是否需要隐藏键盘
+                KeyboardUtils.hideKeyboard(ev, view, this);
+                break;
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+}
+```
+
+```java
+public class KeyboardUtils {
+
+    /**
+* 根据传入控件的坐标和用户的焦点坐标，判断是否隐藏键盘，如果点击的位置在控件内，则不隐藏键盘
+*
+* @param view  控件view
+* @param event 焦点位置
+* @return 是否隐藏
+*/
+    public static void hideKeyboard(MotionEvent event, View view, Activity activity) {
+        try {
+            if (view != null && view instanceof EditText) {
+                int[] location = {0, 0};
+                view.getLocationInWindow(location);
+                int left = location[0], top = location[1], right = left + view.getWidth(), bootom = top + view.getHeight();
+                // （判断是不是EditText获得焦点）判断焦点位置坐标是否在控件所在区域内，如果位置在控件区域外，则隐藏键盘
+                if (event.getRawX() < left || event.getRawX() > right || event.getY() < top || event.getRawY() > bootom) {
+                    // 释放当前 EditText焦点
+                    view.clearFocus();
+
+                    // 隐藏键盘
+                    IBinder token = view.getWindowToken();
+                    InputMethodManager inputMethodManager = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+                    inputMethodManager.hideSoftInputFromWindow(token, InputMethodManager.HIDE_NOT_ALWAYS);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+
+
+#### ProgressBar
+
+
+
+#### SeekBar
+
+
+
+#### RatingBar 
+
+
+
+#### AlterDialog
+
+```java
+AlertDialog.Builder builder = new AlertDialog.Builder(this);
+builder.setTitle("卸载应用");
+// 点击空白区域是否可关闭(默认true)
+builder.setCancelable(false);
+builder.setIcon(R.mipmap.ic_launcher_round);
+builder.setMessage("亲亲，真的要卸载我吗？");
+builder.setPositiveButton("残忍卸载", (DialogInterface dialog, int which) -> {
+    Toast.makeText(this, "拜拜啦，小主！", Toast.LENGTH_SHORT).show();
+});
+builder.setNegativeButton("我再想想", (DialogInterface dialog, int which) -> {
+    Toast.makeText(this, "继续陪你一万年!", Toast.LENGTH_SHORT).show();
+});
+builder.create().show();
+```
+
+
+
+#### DatePickerDialog
+
+```java
+Calendar calendar = Calendar.getInstance();
+DatePickerDialog datePickerDialog = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+    String text = String.format("您选择时间是：%d年%d月%d日", year, month, dayOfMonth);
+    Toast.makeText(CusDialogActivity.this, text, Toast.LENGTH_SHORT).show();
+}, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1, calendar.get(Calendar.DAY_OF_MONTH));
+datePickerDialog.show();
+```
+
+
+
+#### TimePickerDialog
+
+```java
+TimePickerDialog timePickerDialog = new TimePickerDialog(this, (TimePicker view, int hourOfDay, int minute) -> {
+    String text = String.format("您选择的时间是：%d时%d分", hourOfDay, minute);
+    Toast.makeText(CusDialogActivity.this, text, Toast.LENGTH_SHORT).show();
+}, 15, 20, true);
+timePickerDialog.show();
+```
+
+
+
+#### BottomSheetDialog
+
+```java
+BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(CusDialogActivity.this);
+// 点击空白区域是否可关闭(默认true)
+bottomSheetDialog.setCanceledOnTouchOutside(true);
+View view = LayoutInflater.from(CusDialogActivity.this).inflate(R.layout.gender_bottom_sheet, null);
+initInnerView(view, bottomSheetDialog);
+// 显示自定义xml布局
+bottomSheetDialog.setContentView(view);
+bottomSheetDialog.show();
+```
+
+```java
+private void initInnerView(View view, BottomSheetDialog bottomSheetDialog) {
+    view.findViewById(R.id.btn_cancel).setOnClickListener(v -> {
+        Toast.makeText(this, "取消", Toast.LENGTH_SHORT).show();
+        bottomSheetDialog.cancel();
+    });
+
+    view.findViewById(R.id.btn_sure).setOnClickListener(v -> {
+        Toast.makeText(this, "确定", Toast.LENGTH_SHORT).show();
+    });
+
+    view.findViewById(R.id.btn_camera).setOnClickListener(v -> {
+        Toast.makeText(this, "相机拍照", Toast.LENGTH_SHORT).show();
+    });
+
+    view.findViewById(R.id.btn_photo_album).setOnClickListener(v -> {
+        Toast.makeText(this, "相册选取", Toast.LENGTH_SHORT).show();
+    });
+}
+```
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical"
+              android:padding="10dp">
+
+    <LinearLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_marginBottom="10dp"
+                  android:paddingLeft="10dp"
+                  android:paddingRight="10dp">
+
+        <TextView
+                  android:id="@+id/btn_cancel"
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:text="取消" />
+
+        <TextView
+                  android:id="@+id/btn_sure"
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:gravity="right"
+                  android:text="确定" />
+    </LinearLayout>
+
+    <TextView
+              android:id="@+id/btn_camera"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginBottom="10dp"
+              android:gravity="center"
+              android:padding="10dp"
+              android:text="相机拍照" />
+
+    <TextView
+              android:id="@+id/btn_photo_album"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginBottom="10dp"
+              android:gravity="center"
+              android:padding="10dp"
+              android:text="相册选取" />
+</LinearLayout>
+```
+
+
+
+#### ProgressDialog
+
+```
+ProgressDialog dialog = new ProgressDialog(CusDialogActivity.this);
+dialog.setTitle("");
+dialog.setMessage("正在努力加载中...");
+dialog.show();
+new Timer().schedule(new TimerTask() {
+    @Override
+    public void run() {
+        dialog.dismiss();
+    }
+}, 5000);
+```
+
 ## Activity 组件
 
 ### 1、Activity 状态和生命周期
