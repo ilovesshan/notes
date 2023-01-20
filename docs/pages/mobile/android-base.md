@@ -789,7 +789,7 @@ private void initInnerView(View view, BottomSheetDialog bottomSheetDialog) {
 
 #### ProgressDialog
 
-```
+```java
 ProgressDialog dialog = new ProgressDialog(CusDialogActivity.this);
 dialog.setTitle("");
 dialog.setMessage("正在努力加载中...");
@@ -802,7 +802,7 @@ new Timer().schedule(new TimerTask() {
 }, 5000);
 ```
 
-## Activity 组件
+## Activity组件
 
 ### 1、Activity 状态和生命周期
 
@@ -1145,4 +1145,726 @@ String appPackage = bundle.getString("appPackage");
     </shortcut>
 </shortcuts.xml>
 ```
+
+
+
+## 数据持久化
+
+### 1、sharedPreferences
+
+`sharedPreferences`是一个轻量级的存储类，比较适合于保存一些简单的键值对数据，例如：保存软件配置参数。`sharedPreferences`用xml文件存放数据，文件存放在`/data/data/<package name>/shared_prefs`目录下）。
+
+```java
+SharedPreferences sharedPreferences = getSharedPreferences("userinfo", Activity.MODE_PRIVATE);
+SharedPreferences.Editor editor = sharedPreferences.edit();
+// 设置值
+editor.putString("userId", "t123456");
+editor.putString("username", "ilovesshan");
+editor.apply();
+
+// 获取值
+String userId = sharedPreferences.getString("userId", "");
+String username = sharedPreferences.getString("username", "");
+```
+
+
+
+### 2、Sqlite
+
+`Sqlite` 是一个轻量级、内嵌式数据库，数据库服务器就寄宿在应用程序之中，无需网络配置和管理，`Sqlite` 的语法和市场上主流数据库 `mysql`、`oracle`大同小异。`sqllite`数据库文件保存在 `/data/user/0/<package name>/databases`目录下。
+
+#### 创建数据库和删除数据库
+
+```java
+String dbName = getFilesDir() + "/user_info.db";
+SQLiteDatabase sqLiteDatabase = openOrCreateDatabase(dbName, Activity.MODE_PRIVATE, null);
+Toast.makeText(this, sqLiteDatabase != null ? "创建成功" : "创建失败", Toast.LENGTH_SHORT).show()
+```
+
+```java
+String dbName = getFilesDir() + "/user_info.db";
+Toast.makeText(this, deleteDatabase(dbName)  ? "删除成功" : "删除失败", Toast.LENGTH_SHORT).show()
+```
+
+
+
+#### SQLiteOpenHelper类
+
+| 方法名称              | 方法用途                                                     |
+| --------------------- | ------------------------------------------------------------ |
+| onCreate()            | 创建数据库，数据库创建时自动调用                             |
+| onUpgrade()           | 版本升级时调用                                               |
+| close()               | 关闭所有打开的数据库对象                                     |
+| execSQL()             | 可进行增删改操作, 不能进行查询操作                           |
+| query()、rawQuery()   | 数据库查询                                                   |
+| insert()              | 插入数据                                                     |
+| delete()              | 删除数据                                                     |
+| getWritableDatabase() | 创建或打开可以读/写的数据库，通过返回SQLiteDatabase对象对数据库进行操作 |
+| getReadableDatabase() | 创建或打开可读的数据库，通过返回SQLiteDatabase对象对数据库进行操作 |
+
+```java
+public class DbConstant {
+    public static final int DB_VERSION = 1;
+    public static final String DB_NAME = "user.db";
+    public static final String DB_TABLE_NAME_ACCOUNT = "account";
+}
+
+```
+
+```java
+public class DbSql {
+    public static final String CREATE_TABLE_ACCOUNT = "create table " + DbConstant.DB_TABLE_NAME_ACCOUNT + "(\n" +
+        "    username text(24) primary key not null,\n" +
+        "    password text(24) not null,\n" +
+        "    is_remember integer(1) not null,\n" +
+        "    least_login_time text not null\n" +
+        ");";
+}
+
+```
+
+```java
+public class DbManager extends SQLiteOpenHelper {
+    private static final String TAG = "DbManager";
+
+    private static DbManager mDbManager;
+    private static SQLiteDatabase mReadDatabase;
+    private static SQLiteDatabase mWriteDatabase;
+
+    private DbManager(@Nullable Context context, @Nullable String name, int version) {
+        super(context, name, null, version);
+    }
+
+    public static DbManager getInstance(@Nullable Context context, @Nullable String name, int version) {
+        if (mDbManager == null) {
+            synchronized (DbManager.class) {
+                mDbManager = new DbManager(context, name, version);
+            }
+        }
+        return mDbManager;
+    }
+
+    @Override
+    public SQLiteDatabase getReadableDatabase() {
+        if (mReadDatabase == null) {
+            mReadDatabase = super.getReadableDatabase();
+        }
+        return mReadDatabase;
+    }
+
+    @Override
+    public SQLiteDatabase getWritableDatabase() {
+        if (mWriteDatabase == null) {
+            mWriteDatabase = super.getWritableDatabase();
+        }
+        return mWriteDatabase;
+    }
+
+    @Override
+    public void close() {
+        if (mReadDatabase != null && mReadDatabase.isOpen()) mReadDatabase.close();
+        if (mWriteDatabase != null && mWriteDatabase.isOpen()) mWriteDatabase.close();
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        Log.d(TAG, "onCreate: 创建数据库[当前版本: " + db.getVersion() + "]...");
+        db.execSQL(DbSql.CREATE_TABLE_ACCOUNT);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        Log.d(TAG, "onUpgrade: 数据库版本[" + oldVersion + "->" + newVersion + "]升级...");
+    }
+}
+
+```
+
+
+
+```java
+public interface IRememberAccountModel {
+    boolean saveAccount(Account account);
+
+    boolean updateAccount(Account account);
+
+    Account selectLeastAccount();
+
+    Account selectAccountByUsername(String username);
+}
+```
+
+```java
+public class RememberAccountModel implements IRememberAccountModel {
+
+    private Context mContext;
+    private SQLiteDatabase mDb;
+
+
+    public RememberAccountModel(Context context) {
+        mContext = context;
+        mDb = DbManager.getInstance(mContext, DbConstant.DB_NAME, DbConstant.DB_VERSION).getWritableDatabase();
+    }
+
+    @Override
+    public boolean saveAccount(Account account) {
+        Account findAccount = selectAccountByUsername(account.getUsername());
+        if (findAccount.getUsername() == null) {
+            ContentValues contentValues = new ContentValues();
+            contentValues.put("username", account.getUsername());
+            contentValues.put("password", account.getPassword());
+            contentValues.put("is_remember", account.getRemember());
+            contentValues.put("least_login_time", account.getLeastLoginTime());
+            return mDb.insert(DbConstant.DB_TABLE_NAME_ACCOUNT, null, contentValues) > 0;
+        } else {
+            return updateAccount(account);
+        }
+    }
+
+    @Override
+    public boolean updateAccount(Account account) {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("username", account.getUsername());
+        contentValues.put("password", account.getPassword());
+        contentValues.put("is_remember", account.getRemember());
+        contentValues.put("least_login_time", account.getLeastLoginTime());
+        return mDb.update(DbConstant.DB_TABLE_NAME_ACCOUNT, contentValues, "username=?", new String[]{account.getUsername()}) > 0;
+    }
+
+    @Override
+    public Account selectLeastAccount() {
+        Cursor cursor = mDb.rawQuery("select * from " + DbConstant.DB_TABLE_NAME_ACCOUNT + " where is_remember = ? order by least_login_time desc limit 1", new String[]{"1"});
+        if (cursor.moveToNext()) {
+            @SuppressLint("Range") String username = cursor.getString(cursor.getColumnIndex("username"));
+            @SuppressLint("Range") String password = cursor.getString(cursor.getColumnIndex("password"));
+            @SuppressLint("Range") boolean isRemember = cursor.getInt(cursor.getColumnIndex("is_remember")) == 1;
+            @SuppressLint("Range") String leastLoginTime = cursor.getString(cursor.getColumnIndex("least_login_time"));
+            return new Account(username, password, isRemember, leastLoginTime);
+        } else {
+            return new Account();
+        }
+    }
+
+
+    @Override
+    public Account selectAccountByUsername(String name) {
+        Cursor cursor = mDb.query(DbConstant.DB_TABLE_NAME_ACCOUNT, null, "username=?", new String[]{name}, null, null, null);
+        if (cursor.moveToNext()) {
+            @SuppressLint("Range") String username = cursor.getString(cursor.getColumnIndex("username"));
+            @SuppressLint("Range") String password = cursor.getString(cursor.getColumnIndex("password"));
+            @SuppressLint("Range") boolean isRemember = cursor.getInt(cursor.getColumnIndex("is_remember")) == 1;
+            @SuppressLint("Range") String leastLoginTime = cursor.getString(cursor.getColumnIndex("least_login_time"));
+            return new Account(username, password, isRemember, leastLoginTime);
+        } else {
+            return new Account();
+        }
+    }
+}
+
+```
+
+
+
+#### Sqlite事务管理
+
+```java
+// 开启事务
+sQLiteDatabase.beginTransaction();
+
+// 事务成功
+sQLiteDatabase.setTransactionSuccessful();
+
+// 关闭事务
+sQLiteDatabase.endTransaction();
+```
+
+```java
+public long insertWithTransaction(User u1, User u2) {
+    long u1AffectRow = 0;
+    long u2AffectRow = 0;
+    try {
+        mWDB.beginTransaction();
+        u1AffectRow = insert(u1);
+        // 模拟业务异常
+        int t = 10 / 0;
+        u2AffectRow = insert(u2);
+        mWDB.setTransactionSuccessful();
+        return u1AffectRow + u2AffectRow;
+    } catch (Exception e) {
+        e.printStackTrace();
+    } finally {
+        mWDB.endTransaction();
+    }
+    return 0;
+}
+```
+
+
+
+#### Sqlite数据库更新
+
+由于后期需求更新与前期需求变更，不得不对于数据库中的表进行更新、添加或者删除，此时就牵涉到了数据库更新的问题，数据库更新办法：
+
++ 用户卸载 当前版本的 `app` 安装最新版本的 `app`。直接卸载对于老用户会造成数据丢失，对用户体验不好。
+
+  
+
++ 做 `Sqlite` 数据库版本升级。当 `version`升级时(新版本大于现在的版本)，就会执行 `onUpgrade` 方法，不走 `onCreate`方法，当`version`版本升级过程为：`V1 -> V2 -> V3`。
+
+  + 用户更新 `V1 -> V3`，走 `onUpgrade` 方法，不走 `onCreate`。
+  + 用户更新 `V2 -> V3`，走 `onUpgrade` 方法，不走 `onCreate`。
+  + 用户更新直接到`V3`，走 `onCreate` 方法，不走 `onUpgrade`。
+
+开发中，更推荐做 `Sqlite` 数据库版本升级，不到万不得已不要使用 卸载`app`的手段，下面举例数据库版本升级解决方案：
+
+```java
+public class DbUpgradeManager extends SQLiteOpenHelper {
+    private static final String TAG = "DbManager";
+
+    public static final String DB_NAME = "sqlite_upgrade.db";
+    public static final String DB_TABLE_NAME_ACCOUNT = "account";
+    public static final String DB_TABLE_NAME_GOODS = "goods";
+
+    // V1
+    public static final String CREATE_TABLE_ACCOUNT = "create table " + DB_TABLE_NAME_ACCOUNT + "(\n" +
+        "    username text(24) primary key not null,\n" +
+        "    password text(24) not null,\n" +
+        "    is_remember integer(1) not null,\n" +
+        "    least_login_time text not null\n" +
+        ");";
+
+
+    // V2
+    public static final String UPDATE_TABLE_ACCOUNT_STRUCTURE_01 = "alter table " + DB_TABLE_NAME_ACCOUNT + " add column phone text(11)";
+    public static final String UPDATE_TABLE_ACCOUNT_STRUCTURE_02 = "alter table " + DB_TABLE_NAME_ACCOUNT + " add column address text(24)";
+
+
+    // V3
+    public static final String CREATE_TABLE_GOODS = "create table " + DB_TABLE_NAME_GOODS + "(\n" +
+        "    goods_id text(32) primary key not null,\n" +
+        "    goods_name text(24) not null,\n" +
+        "    goods_price real not null\n" +
+        ");";
+
+
+    // V4
+    public static final String DELETE_TABLE_GOODS = "drop table " + DB_TABLE_NAME_GOODS;
+
+
+    // 数据库版本列表
+    public static final int DB_V20230114_01 = 1;
+    public static final int DB_V20230115_01 = 2;
+    public static final int DB_V20230116_01 = 3;
+    public static final int DB_V20230116_02 = 4;
+
+    // 初始化版本
+    public static final int DB_INIT_VERSION = DB_V20230114_01;
+
+    // 最新版本
+    public static final int DB_LAST_VERSION = DB_V20230116_02;
+
+    private static DbUpgradeManager mDbManager;
+    private static SQLiteDatabase mReadDatabase;
+    private static SQLiteDatabase mWriteDatabase;
+
+    private DbUpgradeManager(@Nullable Context context, @Nullable String name, int version) {
+        super(context, name, null, version);
+    }
+
+    public static DbUpgradeManager getInstance(@Nullable Context context) {
+        if (mDbManager == null) {
+            synchronized (DbUpgradeManager.class) {
+                mDbManager = new DbUpgradeManager(context, DB_NAME, DB_LAST_VERSION);
+            }
+        }
+        return mDbManager;
+    }
+
+    @Override
+    public SQLiteDatabase getReadableDatabase() {
+        if (mReadDatabase == null) {
+            mReadDatabase = super.getReadableDatabase();
+        }
+        return mReadDatabase;
+    }
+
+    @Override
+    public SQLiteDatabase getWritableDatabase() {
+        if (mWriteDatabase == null) {
+            mWriteDatabase = super.getWritableDatabase();
+        }
+        return mWriteDatabase;
+    }
+
+    @Override
+    public void close() {
+        if (mReadDatabase != null && mReadDatabase.isOpen()) mReadDatabase.close();
+        if (mWriteDatabase != null && mWriteDatabase.isOpen()) mWriteDatabase.close();
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        Log.d(TAG, "onCreate: 创建数据库[当前版本: " + db.getVersion() + "]...");
+        upgradeVersion(db, DB_INIT_VERSION, DB_LAST_VERSION);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        Log.d(TAG, "onUpgrade: 数据库版本[" + oldVersion + "->" + newVersion + "]升级...");
+        // 加一原因： 当前版本的代码不需要更新
+        upgradeVersion(db, (oldVersion + 1), newVersion);
+    }
+
+    // 数据库版本升级
+    private void upgradeVersion(SQLiteDatabase db, int dbInitVersion, int dbLastVersion) {
+        for (int version = dbInitVersion; version <= dbLastVersion; version++) {
+            switch (version) {
+                case DB_V20230114_01:
+                    // V1 初始版本代码
+                    db.execSQL(CREATE_TABLE_ACCOUNT);
+                    break;
+                case DB_V20230115_01:
+                    // V2 版本代码
+                    db.execSQL(UPDATE_TABLE_ACCOUNT_STRUCTURE_01);
+                    db.execSQL(UPDATE_TABLE_ACCOUNT_STRUCTURE_02);
+                    break;
+                case DB_V20230116_01:
+                    // V3 版本代码
+                    db.execSQL(CREATE_TABLE_GOODS);
+                    break;
+                case DB_V20230116_02:
+                    // V4 版本代码
+                    db.execSQL(DELETE_TABLE_GOODS);
+                    break;
+            }
+        }
+    }
+}
+```
+
+
+
+### 3、存储空间
+
+
+
+#### 内外部存储空间
+
++ 内部存储空间
+
+  app内部的一块存储控件，这块区域中的数据会随着app卸载而清空，其他app应用不能访问这块区域。`sharedPreferences`文件存放的位置也是在这块区域。
+
++ 外部存储空间
+
+  android将外部存储空间分成两部分：外部私有存储空间，外部共享存储空间。
+
+```java
+// 内部存储空间
+// /data/user/0/包名/files/custom.txt || /data/包名/files/custom.txt
+String internalStoragePath = getFilesDir() + File.separator + "custom.txt";
+
+// 外部私有存储空间 
+// /storage/emulated/0/Android/data/包名/files/Download/custom.txt
+String saveExternalPrivateStoragePath = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) + File.separator + "custom.txt";
+
+// 外部共享存储空间 
+// /storage/emulated/0/Download/custom.txt
+String externalShareStoragePath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + File.separator + "custom.txt";
+```
+
+
+
+使用外部共享空间需要申请对应权限
+
+```xml
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+<application
+             android:requestLegacyExternalStorage="true">
+</application>
+```
+
+```java
+public static final int PERMISSION_GRANTED = 0;
+public static final int PERMISSION_DENIED = -1;
+
+
+// android6.0(API23)之后需要 动态申请权限 
+private void requestPermission() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        requestPermissions(new String[]{
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        }, 0);
+    }
+}
+
+@Override
+public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    if (requestCode == 0) {
+        for (int i = 0; i < permissions.length; i++) {
+            // 0 已授权
+            // -1 拒绝授权
+            Log.d(TAG, permissions[i] + "权限申请结果为: " + grantResults[i]);
+        }
+    }
+}
+```
+
+
+
+```java
+public class FileUtil {
+
+    public static void saveText(String path, String data) {
+        try (
+            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(path));
+        ) {
+            bufferedWriter.write(data);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static String readText(String path) {
+        StringBuilder result = new StringBuilder();
+        try (
+            BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
+        ) {
+            String line = "";
+            while ((line = bufferedReader.readLine()) != null) {
+                result.append(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return result.toString();
+    }
+}
+
+```
+
+
+
+#### 存储卡上读写图片
+
+保存图片
+
+```java
+String imagePath = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) + File.separator + "randimg.png";
+Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.randimg);
+FileUtil.saveImage(imagePath, bitmap);
+```
+
+
+
+读取图片
+
+```java
+// Bitmap bm = FileUtil.readImage(imagePath);
+// mImageView.setImageBitmap(bm);
+
+mImageView.setImageURI(Uri.parse(imagePath));
+```
+
+
+
+```java
+public static void saveImage(String path, Bitmap bitmap) {
+    try (
+        FileOutputStream outputStream = new FileOutputStream(path);
+    ) {
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+
+public static Bitmap readImage(String path) {
+    Bitmap bitmap = null;
+
+    try (
+        FileInputStream fileInputStream = new FileInputStream(path);
+    ) {
+        bitmap = BitmapFactory.decodeStream(fileInputStream);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+    return bitmap;
+}
+```
+
+
+
+### 4、Jetpack Room
+
+room 持久性库在 SQLite 上提供了一个抽象层，以便在充分利用 SQLite 的强大功能的同时，能够流畅地访问数据库。具体来说，Room 具有以下优势：
+
+- 针对 SQL 查询的编译时验证。
+- 可最大限度减少重复和容易出错的样板代码的方便注解。
+- 简化了数据库迁移路径。
+
+在项目级别的下 build.grade添加 room依赖
+
+```groovy
+implementation "androidx.room:room-runtime:2.3.0"
+annotationProcessor "androidx.room:room-compiler:2.3.0
+```
+
+
+
+Room 包含三个主要组件：
+
+- [数据库类](https://developer.android.google.cn/reference/kotlin/androidx/room/Database?hl=zh-cn)，用于保存数据库并作为应用持久性数据底层连接的主要访问点。
+- [数据实体](https://developer.android.google.cn/training/data-storage/room/defining-data?hl=zh-cn)，用于表示应用的数据库中的表。
+- [数据访问对象 (DAO)](https://developer.android.google.cn/training/data-storage/room/accessing-data?hl=zh-cn)，提供您的应用可用于查询、更新、插入和删除数据库中的数据的方法。
+
+```java
+@Dao
+public interface UserDao {
+    @Insert
+    void insertUser(UserEntity... userEntities);
+
+    @Delete
+    int deleteUser(UserEntity... userEntities);
+
+    @Query("delete from user where username like:username")
+    int deleteByUsername(String username);
+
+    @Update
+    int updateUser(UserEntity userEntity);
+
+    @Query("select * from user")
+    List<UserEntity> selectAll();
+
+    @Query("select * from user where username like:username")
+    UserEntity selectByUsername(String username);
+
+    @Query("select * from user order by height")
+    List<UserEntity> selectLisWithOrder();
+}
+```
+
+```java
+@Entity(tableName = "user")
+public class UserEntity {
+    @PrimaryKey(autoGenerate = true)
+    public int id;
+
+    @ColumnInfo(name = "username")
+    private String username;
+
+    @ColumnInfo(name = "height")
+    private double height;
+}
+
+```
+
+```java
+// exportSchema 是否导出数据库文件的json信息 默认false， 如果设置成true 需要配置导出路径
+@Database(entities = {UserEntity.class}, version = 1, exportSchema = true)
+public abstract class BaseDao extends RoomDatabase {
+    public abstract UserDao mUserDao();
+}
+```
+
+项目级别`build.grade` 文件中：`android -> defaultConfig` 下配置
+
+```java
+// room.schemaLocation生成的文件路径
+javaCompileOptions {
+    annotationProcessorOptions {
+        arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
+    }
+}
+```
+
+
+
+```java
+public class BaseApplication extends Application {
+    public static BaseApplication mBaseApplication;
+    public static BaseDao sBaseDao;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mBaseApplication = this;
+        sBaseDao = Room.databaseBuilder(this, BaseDao.class, "room.db")
+            // 测试方便 允许在主线程中允许
+            .allowMainThreadQueries()
+            .build();
+    }
+}
+
+```
+
+
+
+
+
+## Application 对象
+
+​		Application是android系统中一个重要的组件，当android应用程序启动时就会自动创建一个Application对象，如果需要创建自己 的Application，也很简单创建一个类继承 Application并在manifest的application标签中进行注册，android系统会为每个程序运行时创建一个Application类的对象且仅创建一个，所以Application可以说是单例 (singleton)模式的一个类且application对象的生命周期是整个程序中最长的，它的生命周期就等于这个程序的生命周期。因为它是全局 的单例的，所以在不同的Activity,Service中获得的对象都是同一个对象。所以通过Application来进行一些，数据传递，数据共享 等,数据缓存等操作。
+
+```java
+public class BaseApplication extends Application {
+    private static final String TAG = "BaseApplication";
+
+    private static BaseApplication mBaseApplication;
+
+    public BaseApplication() {}
+
+    public static BaseApplication getInstance() {
+        return mBaseApplication;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mBaseApplication = this;
+        // 程序创建的时候执行
+        Log.d(TAG, "onCreate...");
+    }
+
+
+    @Override
+    public void onTerminate() {
+        super.onTerminate();
+        // 程序终止的时候执行
+        Log.d(TAG, "onTerminate...");
+    }
+
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // 程序配置变化时执行, 例如屏幕旋转
+        Log.d(TAG, "onConfigurationChanged...");
+    }
+
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        // 低内存的时候执行
+        Log.d(TAG, "onLowMemory...");
+    }
+
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        // 程序在内存清理的时候执行（回收内存）, HOME键退出应用程序、长按MENU键，打开Recent TASK都会执行
+        Log.d(TAG, "onTrimMemory...");
+    }
+}
+
+```
+
+
+
+
 
