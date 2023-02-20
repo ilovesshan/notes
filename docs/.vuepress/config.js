@@ -42,8 +42,7 @@ export default {
       {
         text: '移动端',
         children: [
-          { text: 'android基础', link: '/pages/mobile/android-base.md' },
-          { text: 'android高级', link: '/pages/mobile/android-advanced.md' },
+          { text: 'Android', link: '/pages/mobile/android.md' },
           { text: 'flutter', link: '/pages/mobile/flutter.md' },
         ]
       },
