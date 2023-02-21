@@ -1,4 +1,4 @@
-# Android基础
+# Android开发
 
 [ Android 入门教程](https://www.runoob.com/w3cnote/android-tutorial-intro.html)
 
@@ -3775,6 +3775,312 @@ unbindService(serviceConnection);
 
 
 
+## Handler -  跨线程通信
+
+​		在Android中为了安全稳定规定了只能在主线程中更新UI，但是我们通常不推荐在主线程(UI线程)中做一些耗时操作，比如：网络请求，数据库查询等等，通常我们在处理一些耗时任务时都会开启子线程去处理，当子线程将任务处理完成之后再通知给主线程，由主线程去更新UI，那么这一个流程就牵涉到跨线程通信，在Android中通过 `Handler` 来处理跨线程通信问题。
+
+![](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/2/4/1700f1d829f236e6~tplv-t2oaga2asx-zoom-in-crop-mark:4536:0:0:0.image)
+
+### 1、Handler.sendMessage(Message)
+
+`Handler.sendMessage(Message)` 是一种很常见的使用方法，使用步骤：
+
++ 新建 `Handler`对象，并且重写 `handleMessage(Message message)` 方法
+
+  ```java
+  Handler handler = new Handler(Looper.getMainLooper()) {
+      @Override
+      public void handleMessage(@NonNull Message msg) {
+          // 处理业务逻辑
+      }
+  };
+  ```
+
+  
+
++ 在子线程中新建 `Message`对象设定对应数据，再通过 `Handler.sendMessage(Message)`方法发送信息。
+
+  ```java
+  // 子线程中创建Message对象 通过handler发送信息
+  public void doAsyncTask(){
+      final Message message = new Message();
+      final Bundle bundle = new Bundle();
+      bundle.putString("id", UUID.randomUUID().toString());
+      bundle.putString("name", "ilovesshan");
+      message.what = 1;
+      message.setData(bundle);
+  
+      handler.sendMessage(message);
+  }
+  ```
+
+  
+
++ 在 `Handler` 的 `handleMessage` 方法中处理对应业务逻辑。
+
+### 2、Handler.obtainMessage(what).sendToTarget()
+
+​		`Handler.obtainMessage(what).sendToTarget()` 方法和 `Handler.sendMessage(Message)` 方法很相似，简单来说就是：不用创建`Message`对象，`obtainMessage` 用法更加简洁。关于 `obtainMessage` 方法的重载函数。
+
+```java
+public final Message obtainMessage(int what){}
+public final Message obtainMessage(int what, @Nullable Object obj){}
+public final Message obtainMessage(int what, int arg1, int arg2){}
+public final Message obtainMessage(int what, int arg1, int arg2, @Nullable Object obj){}
+```
+
+```java
+// 子线程中做耗时操作
+public void handleClick(){
+    switch(view.getId()){
+        case R.id.obtain_message_01:
+            final HashMap<String, String> hashMap = new HashMap<String, String>() {{
+                put("userId", UUID.randomUUID().toString());
+                put("username", "jack");
+            }};
+            handler.obtainMessage(MESSAGE_WHAT_02, hashMap).sendToTarget();
+            break;
+        case R.id.obtain_message_02:
+            handler.obtainMessage(MESSAGE_WHAT_03, 0, 0).sendToTarget();
+            break;
+    }
+}
+
+
+// handler中处理业务逻辑
+public void handleMessage(@NonNull Message msg) {
+    switch (msg.what) {
+        case MESSAGE_WHAT_02:
+            // 处理 obtain_message_01 按钮的业务逻辑
+            final Map<String, String> map = (Map<String, String>) msg.obj;
+            Log.d(TAG, "userId: " + map.get("userId"));
+            Log.d(TAG, "username: " + map.get("username"));
+            break;
+        case MESSAGE_WHAT_03:
+            // 处理 obtain_message_02 按钮的业务逻辑
+            Log.d(TAG, "arg1: " + msg.arg1);
+            Log.d(TAG, "arg2: " + msg.arg2);
+            break;
+    }
+}
+```
+
+
+
+### 3、模拟文件下载
+
+```java
+package com.ilovesshan.handlerapp;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
+import android.view.View;
+import android.widget.Button;
+import android.widget.SeekBar;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.UUID;
+
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+
+    public static final int MESSAGE_WHAT_01 = 1;
+    public static final int MESSAGE_WHAT_02 = 2;
+    public static final int MESSAGE_WHAT_03 = 3;
+
+    private Button sendMessage;
+    private SeekBar seekBar;
+    private TextView progressText;
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        initViewAndBindEvent();
+
+    }
+
+    private void initViewAndBindEvent() {
+        sendMessage = findViewById(R.id.send_message);
+        seekBar = findViewById(R.id.seek_bar);
+        progressText = findViewById(R.id.progress_text);
+
+        sendMessage.setOnClickListener(this);
+    }
+
+    // 这种写法可能会造成 Activity泄露, 后面分析
+    Handler handler = new Handler(Looper.getMainLooper()) {
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            // 处理业务逻辑
+            switch (msg.what) {
+                case MESSAGE_WHAT_01:
+                    final Bundle bundle = msg.getData();
+                    final int progress = bundle.getInt("progress");
+                    seekBar.setProgress(progress);
+                    progressText.setText("当前下载进度: " + progress + "%");
+                    if (progress == 100) {
+                        Toast.makeText(MainActivity.this, "下载成功啦~", Toast.LENGTH_SHORT).show();
+                    }
+                    break;
+                case MESSAGE_WHAT_02:
+                    break;
+
+                case MESSAGE_WHAT_03:
+                    break;
+            }
+        }
+    };
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.send_message:
+                new Thread(() -> {
+                    for (int i = 0; i <= 100; i += 5) {
+                        try {
+                            final Message message = new Message();
+                            final Bundle bundle = new Bundle();
+                            bundle.putInt("progress", i);
+                            message.what = 1;
+                            message.setData(bundle);
+                            handler.sendMessage(message);
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }).start();
+                break;
+        }
+    }
+}
+```
+
+
+
+### 4、Handler.post(Runnable)
+
+将可运行的 `Runnable` 添加到消息队列。`Runnable` 将在该 `Handler` 相关的线程上运行处理。
+
+```java
+public void doAsyncTask(){
+    new Thread(() -> {
+        // 这是子线程 不能处理UI
+        Log.d(TAG, Thread.currentThread().getName());
+    }).start();
+
+    new Handler(Looper.getMainLooper()).post(() -> {
+        // 这是主线程 可以处理UI
+        Log.d(TAG, Thread.currentThread().getName());
+    });
+}
+```
+
+
+
+### 5、子线程中使用Handler
+
+```java
+new Thread(() -> {
+    // 在子线程中使用Handler。
+    // 注意构建Handler的时候，在子线程中如果不传入Looper对象会抛出异常(主线程不会抛异常)，因为：在创建 Handler对象时要关联所处线程的 Looper对象，而我们的子线程没有 Looper
+    childHandler = new Handler(Looper.getMainLooper()) {
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            if (msg.what == MESSAGE_WHAT_04) {
+                Log.d(TAG, "收到消息时间: " + msg.obj.toString());
+            }
+        }
+    };
+}).start();
+
+
+// 如果不传入Looper对象的解决办法
+new Thread(() -> {
+    //为当前线程创建一个 Looper 对象
+    Looper.prepare();
+    childHandler = new Handler() {
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            if (msg.what == MESSAGE_WHAT_04) {
+                Log.d(TAG, "收到消息时间: " + msg.obj.toString());
+            }
+        }
+    };
+    // 循环读取信息
+    Looper.loop();
+}).start();
+```
+
+```java
+// 向子线程的handler发送信息
+new Thread(() -> {
+    final String formatTime = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(Calendar.getInstance().getTime());
+    childHandler.obtainMessage(MESSAGE_WHAT_04, formatTime).sendToTarget();
+}).start();
+```
+
+
+
+### 6、Handler内存泄漏问题
+
+Android中使用Handler为何造成内存泄漏以及处理办法，参考文章：
+
++ https://juejin.cn/post/6844903793100849160
++ https://blog.csdn.net/qq_34681580/article/details/105161553
+
+总结处理办法：
+
++ 通弱引用 + 静态内部类方式
+
+  ```java
+  final InnerHandler handler = new InnerHandler(new WeakReference<Activity>(this));
+  
+  static class InnerHandler extends Handler {
+      private WeakReference<Activity> weakReference;
+  
+      public InnerHandler(WeakReference<Activity> weakReference) {
+          this.weakReference = weakReference;
+      }
+  
+      @Override
+  
+      public void handleMessage(@NonNull Message msg) {
+          if (weakReference != null && weakReference.get() != null) {
+              // 处理业务逻辑...
+          }
+      }
+  }
+  ```
+
+  
+
++ 通过程序来避免造成内存泄漏
+
+  调用`mHandler.removeCallbacksAndMessages(null)`，移除该`handler`的所有消息。
+
+  调用`handler.removeCallbacksAndMessages(Object token)`，可以移除`handler`中指定消息。
+
+  ```java
+  @Override
+  protected void onDestroy() {
+      super.onDestroy();
+      if (mHandler != null)  {
+          mHandler.removeCallbacksAndMessages(null);
+      }
+  }
+  ```
+
+  
+
 ## 网络编程
 
 ### 1、网络基本概念
@@ -4129,4 +4435,12 @@ RetrofitManager.getRetrofit().create(ApiService.class).upload_file_single(part).
     }
 });
 ```
+
+
+
+## 自定义 View
+
+### 1、自定义轮播图
+
+[自定义轮播图 - 项目地址](https://github.com/ilovesshan/custom_swiper)
 
