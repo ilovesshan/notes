@@ -42,7 +42,7 @@ export default {
       {
         text: '移动端',
         children: [
-          { text: 'Android', link: '/pages/mobile/android.md' },
+          { text: 'android', link: '/pages/mobile/android.md' },
           { text: 'flutter', link: '/pages/mobile/flutter.md' },
         ]
       },
