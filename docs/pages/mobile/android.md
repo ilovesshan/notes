@@ -69,11 +69,20 @@ public static float dp2px(float dp) {
 
 ```java
 public class ScreenUtil {
-    public static int dip2px(Context context, double dipValue) {
-        // density 1个dip对应多少px
-        float density = context.getResources().getDisplayMetrics().density;
-        return (int) (dipValue * density + 0.5);
+    // 根据手机的分辨率从 dp 的单位 转成为 px(像素)
+    public static int dip2px(Context context, float dpValue) {
+        // 获取当前手机的像素密度（1个dp对应几个px）
+        float scale = context.getResources().getDisplayMetrics().density;
+        return (int) (dpValue * scale + 0.5f); // 四舍五入取整
     }
+
+    // 根据手机的分辨率从 px(像素) 的单位 转成为 dp
+    public static int px2dip(Context context, float pxValue) {
+        // 获取当前手机的像素密度（1个dp对应几个px）
+        float scale = context.getResources().getDisplayMetrics().density;
+        return (int) (pxValue / scale + 0.5f); // 四舍五入取整
+    }
+
 }
 ```
 
@@ -878,6 +887,36 @@ popupMenu.setOnMenuItemClickListener(item -> {
     }
     return false;
 });
+```
+
+
+
+#### Toast
+
+```java
+// 基础用法
+Toast.makeText(context, "这是一个土司", Toast.LENGTH_SHORT).show();
+```
+
+```java
+public class ToastUtil {
+    private static Toast toast;
+
+    /**
+     * 防止多个Toast重叠
+     *
+     * @param message 提示信息
+     */
+    public static void show(String message) {
+        if (toast == null) {
+            toast = Toast.makeText(BaseApplication.getContext(), message, Toast.LENGTH_SHORT);
+        } else {
+            toast.setText(message);
+        }
+        toast.show();
+    }
+}
+
 ```
 
 
@@ -4347,18 +4386,35 @@ implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
 
 ```java
 public class RetrofitManager {
-    private static final Retrofit retrofit = new Retrofit.Builder()
-        .baseUrl("http:192.168.1.168:9999")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build();
+    private static RetrofitManager retrofitManager = null;
+    private static Retrofit retrofit;
 
     private RetrofitManager() {
     }
 
-    public static Retrofit getRetrofit() {
+    public static RetrofitManager getInstance() {
+        synchronized (RetrofitManager.class) {
+            if (retrofitManager == null) {
+                retrofitManager = new RetrofitManager();
+            }
+        }
+        return retrofitManager;
+    }
+
+    public Retrofit getRetrofit() {
+        retrofit = new Retrofit.Builder()
+            .baseUrl(ApiConfig.BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build();
         return retrofit;
     }
+
+    public static <T> T getServiceApi(Class<T> tClass) {
+        final Retrofit retrofit = RetrofitManager.getInstance().getRetrofit();
+        return retrofit.create(tClass);
+    }
 }
+
 ```
 
 ```java
@@ -4443,4 +4499,344 @@ RetrofitManager.getRetrofit().create(ApiService.class).upload_file_single(part).
 ### 1、自定义轮播图
 
 [自定义轮播图 - 项目地址](https://github.com/ilovesshan/custom_swiper)
+
+
+
+## 常用工具类
+
+### 1、App应用相关
+
+```java
+public class AppUtil {
+
+    /**
+     * 检测手机中是否已经安装某个应用
+     *
+     * @param context     context
+     * @param packageName 应用包名
+     */
+    public static boolean checkIsInstallApp(Context context, String packageName) {
+        boolean installedApp = false;
+        try {
+            final ApplicationInfo applicationInfo = context.getPackageManager().getApplicationInfo(packageName, 0);
+            installedApp = applicationInfo != null;
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        return installedApp;
+    }
+
+
+    /**
+     * 跳转到App应用中
+     *
+     * @param context context
+     * @param pkg     pkg
+     * @param cls     cls
+     */
+    public static void jumpToApp(Context context, String pkg, String cls) {
+        final Intent intent = new Intent();
+        final ComponentName componentName = new ComponentName(pkg, cls);
+        intent.setComponent(componentName);
+        context.startActivity(intent);
+    }
+}
+
+```
+
+### 2、日志文件
+
+```java
+public class LogUtil {
+    public static String mBaseTag = "LOG_UTIL";
+    public static boolean mIsRelease = false;
+
+    /**
+     * 初始化工具
+     *
+     * @param baseTag   App包名
+     * @param isRelease 模式
+     */
+    public static void init(String baseTag, boolean isRelease) {
+        mBaseTag = baseTag;
+        mIsRelease = isRelease;
+    }
+
+    /**
+     * debug mode
+     *
+     * @param clazz   类字节码
+     * @param content 输出信息
+     */
+    public static void d(Class clazz, String content) {
+        if (!mIsRelease) {
+            Log.d(clazz.getName(), content);
+        }
+    }
+
+    /**
+     * verbose mode
+     *
+     * @param clazz   类字节码
+     * @param content 输出信息
+     */
+    public static void v(Class clazz, String content) {
+        if (!mIsRelease) {
+            Log.v(clazz.getName(), content);
+        }
+    }
+
+    /**
+     * info mode
+     *
+     * @param clazz   类字节码
+     * @param content 输出信息
+     */
+    public static void i(Class clazz, String content) {
+        if (!mIsRelease) {
+            Log.i(clazz.getName(), content);
+        }
+    }
+
+    /**
+     * warn mode
+     *
+     * @param clazz   类字节码
+     * @param content 输出信息
+     */
+    public static void w(Class clazz, String content) {
+        if (!mIsRelease) {
+            Log.i(clazz.getName(), content);
+        }
+    }
+
+    /**
+     * error mode
+     *
+     * @param clazz   类字节码
+     * @param content 输出信息
+     */
+    public static void e(Class clazz, String content) {
+        if (!mIsRelease) {
+            Log.e(clazz.getName(), content);
+        }
+    }
+}
+
+```
+
+
+
+### 3、RetrofitManager
+
+```java
+public class RetrofitManager {
+    private static RetrofitManager retrofitManager = null;
+    private static Retrofit retrofit;
+
+    private RetrofitManager() {
+    }
+
+    public static RetrofitManager getInstance() {
+        synchronized (RetrofitManager.class) {
+            if (retrofitManager == null) {
+                retrofitManager = new RetrofitManager();
+            }
+        }
+        return retrofitManager;
+    }
+
+    public Retrofit getRetrofit() {
+        retrofit = new Retrofit.Builder()
+                .baseUrl(ApiConfig.BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        return retrofit;
+    }
+
+    public static <T> T getServiceApi(Class<T> tClass) {
+        final Retrofit retrofit = RetrofitManager.getInstance().getRetrofit();
+        return retrofit.create(tClass);
+    }
+}
+
+```
+
+4、UiLoader
+
+```java
+package com.ilovesshan.couponunion.utils;
+
+import android.content.Context;
+import android.util.AttributeSet;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.FrameLayout;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import com.ilovesshan.couponunion.R;
+import com.ilovesshan.couponunion.base.BaseApplication;
+
+/**
+ * Created with IntelliJ IDEA.
+ *
+ * @author: ilovesshan
+ * @date: 2022/5/27
+ * @description: UI加载器 根据状态加载不同界面  加载中/成功/失败/数据为空...
+ */
+public abstract class UILoader extends FrameLayout {
+
+    // 默认状态
+    public static UILoaderState sUILoaderState = UILoaderState.NONE;
+
+    private View mLoadingView;
+    private View mLoadSuccessView;
+    private View mLoadErrorView;
+    private View mLoadEmptyView;
+
+    /**
+     * 页面加载状态
+     */
+    public static enum UILoaderState {
+        LOADING, SUCCESS, ERROR, EMPTY, NONE
+    }
+
+
+    OnRetryLoadClickListener mOnRetryLoadClickListener = null;
+
+    public UILoader(@NonNull Context context) {
+        this(context, null);
+    }
+
+    public UILoader(@NonNull Context context, @Nullable AttributeSet attrs) {
+        this(context, attrs, 0);
+    }
+
+    public UILoader(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+        this(context, attrs, defStyleAttr, 0);
+    }
+
+    public UILoader(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+        super(context, attrs, defStyleAttr, defStyleRes);
+
+        // 加载界面
+        updateUIByState();
+    }
+
+
+    public void updateUILoaderState(UILoaderState uiLoaderState) {
+        // 更正UIState 的状态
+        sUILoaderState = uiLoaderState;
+        BaseApplication.getHandler().post(() -> updateUIByState());
+    }
+
+    /**
+     * 更具State 更新UI界面
+     */
+    private void updateUIByState() {
+        // 控制UI的显示和隐藏
+
+        // 加载中
+        if (mLoadingView == null) {
+            mLoadingView = createLoadingView();
+            addView(mLoadingView);
+        }
+        mLoadingView.setVisibility(sUILoaderState == UILoaderState.LOADING ? VISIBLE : GONE);
+
+        // 加载成功
+        if (mLoadSuccessView == null) {
+            mLoadSuccessView = createSuccessView();
+            addView(mLoadSuccessView);
+        }
+        mLoadSuccessView.setVisibility(sUILoaderState == UILoaderState.SUCCESS ? VISIBLE : GONE);
+
+        // 加载失败
+        if (mLoadErrorView == null) {
+            mLoadErrorView = createErrorView();
+            addView(mLoadErrorView);
+        }
+        mLoadErrorView.setVisibility(sUILoaderState == UILoaderState.ERROR ? VISIBLE : GONE);
+
+        // 加载 空数据
+        if (mLoadEmptyView == null) {
+            mLoadEmptyView = createEmptyView();
+            addView(mLoadEmptyView);
+        }
+        mLoadEmptyView.setVisibility(sUILoaderState == UILoaderState.EMPTY ? VISIBLE : GONE);
+    }
+
+
+    /**
+     * 创建加载中的View
+     */
+    private View createLoadingView() {
+        return LayoutInflater.from(getContext()).inflate(R.layout.state_loading_view, this, false);
+    }
+
+    /**
+     * 创建加载成功的View
+     */
+    protected abstract View createSuccessView();
+
+    /**
+     * 创建加载失败的View
+     */
+    private View createErrorView() {
+        View view = LayoutInflater.from(getContext()).inflate(R.layout.state_error_view, this, false);
+
+        // 处理加载失败 点击重新加载
+        View loadErrorContainer = view.findViewById(R.id.retry_container);
+
+        loadErrorContainer.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mOnRetryLoadClickListener != null) {
+                    mOnRetryLoadClickListener.onRetry();
+                }
+            }
+        });
+
+        return view;
+
+    }
+
+    /**
+     * 创建空数据的View
+     */
+    private View createEmptyView() {
+        return LayoutInflater.from(getContext()).inflate(R.layout.state_empty_view, this, false);
+    }
+
+    public void setOnRetryLoadClickListener(OnRetryLoadClickListener listener) {
+        this.mOnRetryLoadClickListener = listener;
+    }
+
+    public interface OnRetryLoadClickListener {
+        void onRetry();
+    }
+
+}
+```
+
+### 4、ScreenUtil
+
+```java
+public class ScreenUtil {
+    public static int dip2px(Context context, float dpValue) {
+        // 获取当前手机的像素密度（1个dp对应几个px）
+        float scale = context.getResources().getDisplayMetrics().density;
+        return (int) (dpValue * scale + 0.5f); // 四舍五入取整
+    }
+
+    // 根据手机的分辨率从 px(像素) 的单位 转成为 dp
+    public static int px2dip(Context context, float pxValue) {
+        // 获取当前手机的像素密度（1个dp对应几个px）
+        float scale = context.getResources().getDisplayMetrics().density;
+        return (int) (pxValue / scale + 0.5f); // 四舍五入取整
+    }
+
+}
+```
 
