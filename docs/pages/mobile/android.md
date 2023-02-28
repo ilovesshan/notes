@@ -4502,6 +4502,27 @@ RetrofitManager.getRetrofit().create(ApiService.class).upload_file_single(part).
 
 
 
+## 项目实战
+
+### 1、[喜马拉雅项目实战](https://github.com/ilovesshan/ximalaya)
+
+### 2、[领券联盟项目实战](https://github.com/ilovesshan/CouponUnion)
+
+​	项目覆盖技术点
+
++ 项目基于MVP架构模式
++ Retrofit封装
++ UI注入框架
++ UILoader封装
++ ViewPager + Fragment，TableLayout + Fragment 搭配使用
++ 自定义控件
++ SmartRefresh刷新控件、RecycleView控件使用，处理SmartRefresh和NestedScrollView嵌套引发的BUG
++ 图片优化，根据size动态加载
++ 手动依赖三方模块(SmartRefresh、RxTools)，修改源码进行功能定制
++ 主题(清明灰)配置
+
+
+
 ## 常用工具类
 
 ### 1、App应用相关
@@ -4539,6 +4560,19 @@ public class AppUtil {
         final ComponentName componentName = new ComponentName(pkg, cls);
         intent.setComponent(componentName);
         context.startActivity(intent);
+    }
+
+    /**
+     * 实现全局灰色主题
+     *
+     * @param view
+     */
+    public static void changeToGeyTheme(View view) {
+        ColorMatrix colorMatrix = new ColorMatrix();
+        colorMatrix.setSaturation(0);
+        final Paint paint = new Paint();
+        paint.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
+        view.setLayerType(View.LAYER_TYPE_SOFTWARE, paint);
     }
 }
 
@@ -4838,5 +4872,170 @@ public class ScreenUtil {
     }
 
 }
+```
+
+### 5、PresenterManager
+
+```java
+public class PresenterManager {
+    private static PresenterManager PresenterManager = null;
+
+    private static HomeCategoryDetailPresenter homeCategoryDetailPresenter;
+    private static HomePresenter homePresenter;
+    private static TicketPresenter ticketPresenter;
+
+    private PresenterManager() {
+    }
+
+    public static PresenterManager getInstance() {
+        synchronized (PresenterManager.class) {
+            if (PresenterManager == null) {
+                PresenterManager = new PresenterManager();
+                homeCategoryDetailPresenter = new HomeCategoryDetailPresenter();
+                homePresenter = new HomePresenter();
+                ticketPresenter = new TicketPresenter();
+            }
+        }
+        return PresenterManager;
+    }
+
+    public HomeCategoryDetailPresenter getHomeCategoryDetailPresenter() {
+        return homeCategoryDetailPresenter;
+    }
+
+    public HomePresenter getHomePresenter() {
+        return homePresenter;
+    }
+
+    public TicketPresenter getTicketPresenter() {
+        return ticketPresenter;
+    }
+}
+```
+
+### 6、KeyBroadUtil
+
+```java
+public class KeyBoardUtil {
+    /**
+     * 隐藏 软键盘
+     *
+     * @param context context
+     * @param view    view
+     */
+    public static void hide(Context context, View view) {
+        final InputMethodManager inputMethodManager = (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+        inputMethodManager.hideSoftInputFromWindow(view.getWindowToken(), InputMethodManager.RESULT_UNCHANGED_SHOWN);
+    }
+
+
+    /**
+     * 显示 软键盘
+     *
+     * @param context context
+     * @param view    view
+     */
+    public static void show(Context context, View view) {
+        final InputMethodManager inputMethodManager = (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+        inputMethodManager.showSoftInput(view, InputMethodManager.RESULT_UNCHANGED_SHOWN);
+    }
+}
+```
+
+
+
+### 7、BaseApplication
+
+```java
+public class BaseApplication extends Application {
+
+    private static Context context;
+    private static Handler handler;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        initialization();
+    }
+
+    private void initialization() {
+        context = getBaseContext();
+        handler = new Handler();
+    }
+
+    public static Context getContext() {
+        return context;
+    }
+
+    public static Handler getHandler() {
+        return handler;
+    }
+}
+
+```
+
+### 8、ToastUtil
+
+```java
+public class ToastUtil {
+    private static Toast toast;
+    private static ProgressDialog progressDialog;
+
+    /**
+     * 防止多个Toast重叠
+     *
+     * @param message 提示信息
+     */
+    public static void showMessage(String message) {
+        if (toast == null) {
+            toast = Toast.makeText(BaseApplication.getContext(), message, Toast.LENGTH_SHORT);
+        } else {
+            toast.setText(message);
+        }
+        toast.show();
+    }
+
+    /**
+     * 加载中loading
+     *
+     * @param context    显示 loading
+     * @param message    文字提示信息
+     * @param canDismiss ProgressDialog 是否可以按返回键取消
+     */
+    public static void showLoading(Context context, String message, boolean canDismiss) {
+        if (progressDialog == null) {
+            progressDialog = new ProgressDialog(context);
+            progressDialog.setCancelable(canDismiss);
+        }
+        progressDialog.setMessage(TextUtils.isEmpty(message) ? "正在努力加载中..." : message);
+        progressDialog.show();
+    }
+
+
+    /**
+     * 加载中loading
+     *
+     * @param context 显示 loading
+     * @param message 文字提示信息
+     */
+    public static void showLoading(Context context, String message) {
+        if (progressDialog == null) {
+            progressDialog = new ProgressDialog(context);
+        }
+        progressDialog.setMessage(TextUtils.isEmpty(message) ? "正在努力加载中..." : message);
+        progressDialog.show();
+    }
+
+
+    /**
+     * 关闭 loading
+     */
+    public static void dismissLoading() {
+        if (progressDialog != null) {
+            progressDialog.dismiss();
+        }
+    }
+}
+
 ```
 
