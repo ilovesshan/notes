@@ -4523,6 +4523,79 @@ RetrofitManager.getRetrofit().create(ApiService.class).upload_file_single(part).
 
 
 
+## 混合应用开发
+
+### 1、Android项目集成flutter模块
+
+[将 Flutter module 集成到 Android 项目](https://flutter.cn/docs/development/add-to-app/android/project-setup)
+
+#### 1.1、原生安卓项目依赖flutter模块
+
++ 新建 `flutter module` 推荐和 `Android项目保持同一路径`
+
+  ```dart
+  flutter create -t module --org com.ilovesshan flutter_app
+  ```
+
++ 在 `Android` 项目中依赖 `flutter` 模块的源码
+
+  ```groovy
+  // settings.gradle
+  setBinding(new Binding([gradle: this]))
+  evaluate(new File(settingsDir.parentFile, 'flutter_app/.android/include_flutter.groovy'))
+  ```
+
+  ```java
+  // app build.grade
+  
+  dependencies {
+      implementation project(':flutter')
+  }
+  ```
+
++ 修改 `settings.gradle` 文件
+
+  ```java
+  dependencyResolutionManagement {
+      repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+          // repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+          repositories {
+          google()
+              mavenCentral()
+              maven { url "https://jitpack.io" }
+      }
+  }
+  ```
+
+  此时，你的应用程序已将 Flutter 模块添加为依赖项
+
++ 如果运行原生工程发现报错，请注意查看并修改 `flutter` 模块中 `.android/local.properties` 文件中路径信息。
+
+  ```java
+  // 错误信息
+  Caused by: org.gradle.api.internal.plugins.PluginApplicationException: Failed to apply plugin class 'FlutterPlugin'.
+  Caused by: org.gradle.api.InvalidUserCodeException: Build was configured to prefer settings repositories over project repositories but repository 'maven2' was added by plugin class 'FlutterPlugin'
+  
+  ```
+
+  ```java
+  // 修改前
+  sdk.dir=E:\\workspace\\env\\androidSDK
+  flutter.sdk=E:\\workspace\\env\\fvm\\default
+      
+  // 修改后
+  sdk.dir=E\:\\workspace\\env\\androidSDK
+  flutter.sdk=E\:\\workspace\\env\\fvm\\default
+  ```
+
+#### 1.2、跳转到flutter界面
+
+
+
+#### 1.3、使用FlutterFargment
+
+
+
 ## 常用工具类
 
 ### 1、App应用相关

@@ -51,9 +51,11 @@ export default {
         children: [
           { text: 'java基础', link: '/pages/backend/java-base.md' },
           { text: 'java高级', link: '/pages/backend/java-advanced.md' },
+          { text: 'javaWeb', link: '/pages/backend/javaWeb.md' },
+          { text: 'myBatis', link: '/pages/backend/myBatis.md' },
           { text: 'spring', link: '/pages/backend/spring.md' },
           { text: 'springMvc', link: '/pages/backend/springMvc.md' },
-          { text: 'myBatis', link: '/pages/backend/myBatis.md' },
+          { text: 'springBoot', link: '/pages/backend/springBoot.md' },
         ]
       },
       {
