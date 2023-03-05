@@ -956,7 +956,7 @@
 
      + public  String getServletName();
 
-     + getServletName主要获取<servlet-name>标签中的值
+     + getServletName主要获取<servlet-name/>标签中的值
 
        
 
@@ -972,14 +972,14 @@
 
      + public  String getInitParameter(String var1);
 
-     + getInitParameter 主要获取<servlet>标签中的配置的参数名称
+     + getInitParameter 主要获取\<servlet>标签中的配置的参数名称
 
        
 
    + getInitParameterNames
 
-     + public  Enumeration<String> getInitParameterNames();
-     + getInitParameterNames主要获取<<servlet>标签中的配置的参数名称对应的值
+     + public  Enumeration\<String> getInitParameterNames();
+     + getInitParameterNames主要获取\<servlet>标签中的配置的参数名称对应的值
 
 4. 修改一下web.xml配置文件，验证ServletConfig中的方法。
 
@@ -1066,7 +1066,7 @@
    + ServletContext 也是Servlet规范之一，ServletContext 是一个接口。
 
    + ServletContext 翻译理解就是：Servlet的一个上下文环境
-   + 其实一个ServletContext就好比一个web.xml文件，web.xml中有很多个<servlet> 和 <servlet-mapping>标签信息。
+   + 其实一个ServletContext就好比一个web.xml文件，web.xml中有很多个\<servlet> 和 \<servlet-mapping>标签信息。
    + 一个webapp项目中只存在一web.xml呗，ServletContext那是不是也只有一个呢？后面代码验证！！
    + 再举一个例子：
      + 一个宿舍睡8个人，每个人是一个Servlet对象，那么这间宿舍就是一个ServletContext 
@@ -1153,11 +1153,11 @@
 
      + 获取servletContext的初始化参数
 
-   + Enumeration<String> getInitParameterNames();
+   + Enumeration\<String> getInitParameterNames();
 
      + 获取servletContext的全部参数名称
 
-     在web.xml的<web-app >标签中添加配置信息
+     在web.xml的\<web-app >标签中添加配置信息
 
      ```xml
      <web-app >
@@ -1208,7 +1208,7 @@
 
      + 从application中删除数据
 
-   + Enumeration<String> getAttributeNames();
+   + Enumeration\<String> getAttributeNames();
 
      + 从application获取所有的参数名称
 
@@ -1497,7 +1497,7 @@
 
    + jakarta.servlet.ServletConfig（接口）
 
-     + Servlet 配置信息（web.xml中<servlet>标签中的配置）
+     + Servlet 配置信息（web.xml中\<servlet>标签中的配置）
 
    + jakarta.servlet.ServletContext（接口）
 
@@ -1708,7 +1708,7 @@
 
 2. 在tomcat中如何配置欢迎页面？
 
-   + 通过配置web.xml中的<welcome-file-list>标签来实现web欢迎界面，<welcome-file-list>标签可以配置多个欢迎界面，加载顺序从上到下。
+   + 通过配置web.xml中的\<welcome-file-list>标签来实现web欢迎界面，\<welcome-file-list>标签可以配置多个欢迎界面，加载顺序从上到下。
 
      ```xml
      <welcome-file-list>
@@ -1719,7 +1719,7 @@
      </welcome-file-list>
      ```
 
-   + web.xml中的<welcome-file-list>是局部的，还有一个全局的配置，在apache-tomcat-10.0.23\conf\web.xml中4737行，项目配置的叫做局部，tomcat文件夹下面的叫做全局，查找顺序采用就近原则（先找局部，再看全局，最终找不到就报错了）。
+   + web.xml中的\<welcome-file-list>是局部的，还有一个全局的配置，在apache-tomcat-10.0.23\conf\web.xml中4737行，项目配置的叫做局部，tomcat文件夹下面的叫做全局，查找顺序采用就近原则（先找局部，再看全局，最终找不到就报错了）。
 
      ```xml
      <welcome-file-list>
@@ -1732,8 +1732,8 @@
 3. web欢迎页展示Servlet
 
    + 新建Servlet类继承HttpServlet抽象类
-   + 配置<servlet> 和    <servlet-mapping>标签
-   + 配置 <welcome-file-list> 标签
+   + 配置\<servlet> 和    \<servlet-mapping>标签
+   + 配置 \<welcome-file-list> 标签
 
    ```java
    public class HelloServlet extends HttpServlet {
