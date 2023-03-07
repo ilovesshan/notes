@@ -2027,7 +2027,24 @@
      response.setContentType("text/html;charset=utf-8");
      ```
 
-     
+   + tomcat6.x之前
+   
+     + 请求（数据包含中文）：POST 乱码、GET 乱码
+     + 响应（数据包含中文）：乱码
+   
+   + tomcat6.x之后，处理了GET请求乱码问题
+   
+     + apache-tomcat-10.0.23\confserver.xml中
+   
+       ```xml
+       <!-- tomcat6.x之前 URIEncoding 默认是 "ios-8859-1"-->
+       <!-- tomcat6.x之后 URIEncoding 默认是 "utf-8"-->
+       <Connector port="8080" protocol="HTTP/1.1"
+                  connectionTimeout="20000"
+                  redirectPort="8443" />
+       ```
+   
+       
 
 ### 纯Servlet单表增删改查
 
@@ -2139,8 +2156,14 @@
          }
      }
      ```
+   
+5. 编写Servlet功能实现
 
-
+   + DeptAddServlet：添加部门
+   + DeptDeleteServlet：删除部门
+   + DeptDetailServlet：查询部门详情
+   + DeptListServlet：查询部门列表
+   + DeptUpdateServlet：更新部门
 
 ### 深度剖析请求转发和重定向
 
@@ -2191,19 +2214,644 @@
    + 请求转发地址栏不会发生变化，重定向地址栏会发生变化
    + 请求转发存在缓存，重定向不存在缓存
 
+### Servlet注解简化开发配置
+
+1. 为什么需要注解？
+
+   + 在oa项目中，仅仅是一个单表的crud就在web.xml中配置了一大堆，随着项目功能复杂。那这个文件不得撑爆？？
+   + 那么我们可以通过注解来简化这一系列配置，注解的出现，不是代表web.xml没用了，而是仅仅起到简化配置的，提高开发效率的效果。
+   + 一般情况下，一些配置属性是固定不变的我们可以考虑使用注解，如果是需要动态变化的，还是建议使用xml。
+
+2. WebServlet注解如何使用？
+
+   ```java
+   // 元注解信息
+   @Target({ElementType.TYPE})
+   @Retention(RetentionPolicy.RUNTIME)
+   @Documented
+   public @interface WebServlet {
+   
+       // servlet名称 等同于 <servlet-name>xxx</servlet-name>
+       String name() default "";
+   
+       // servlet映射路径 等同于 <url-pattern>xxx</url-pattern>
+       // 这一个字符数组，可以配置多个t映射路径
+       // value = {"/a"}
+       // value = {"/a", "/b", "/c"}
+       String[] value() default {};
+   
+       // 和 value() 一样的效果
+       String[] urlPatterns() default {};
+   
+       // 指定 servlet加载时机 等同于 <load-on-startup>xxx</load-on-startup>
+       int loadOnStartup() default -1;
+   
+       // WebInitParam也是一个注解 设置servlet初始化参数 
+       // 等同于 <init-param>xxx</init-param> 中配置的信息
+       WebInitParam[] initParams() default {};
+   
+       boolean asyncSupported() default false;
+   
+       String smallIcon() default "";
+   
+       String largeIcon() default "";
+   
+       // servlet 描述信息
+       String description() default "";
+   
+       String displayName() default "";
+   }
+   ```
+
+   ```java
+   @Target({ElementType.TYPE})
+   @Retention(RetentionPolicy.RUNTIME)
+   @Documented
+   public @interface WebInitParam {
+       // 初始化参数 name
+       // 等同于 <param-name>uanme</param-name>
+       String name();
+   
+       // 初始化参数 value
+       // 等同于 <param-value>upwd</param-value>
+       String value();
+   
+       // 初始化参数 描述信息
+       // 等同于 <description>xxx</description>
+       String description() default "";
+   }
+   ```
+
+3. 通过反射机制获取自定义注解信息
+
+   ```java
+   @Target(ElementType.TYPE)
+   @Retention(RetentionPolicy.RUNTIME)
+   @Documented
+   public @interface MyAnnotation {
+       String value() default "";
+       String[] paths();
+   }
+   ```
+
+   ```java
+   @MyAnnotation(value = "jack", paths = {"/abc", "/def"})
+   public class AnnotationTest {
+       public static void main(String[] args) throws ClassNotFoundException {
+           Class<?> aClass = Class.forName("com.test.code.AnnotationTest");
+           boolean hasAnnotation = aClass.isAnnotationPresent(MyAnnotation.class);
+           if (hasAnnotation) {
+               MyAnnotation annotation = aClass.getAnnotation(MyAnnotation.class);
+               String value = annotation.value();
+               String[] paths = annotation.paths();
+               System.out.println("value = " + value);
+               System.out.println("paths = " + Arrays.toString(paths));
+           }
+       }
+   }
+   ```
+
+   
+
+### 模板设计模式解决Servlet类爆炸
+
+1. 为什么要改造？
+
+   + 一个单表的crud就写了5个Servlet类，随着项目功能复杂，那这个项目中Servlet会变得越来越臃肿！！，而且后期要维护会很麻烦。
+   + 我们应该按照：一个业务模块（功能）对应一个Servlet，至于这个业务模块（功能）中的具体逻辑就在这个Servlet中处理就好了，没必要写很多个Servlet。
+   + 鉴于这个想法，我们就来改造一下oa项目
+
+2. 对Servlet进行改造
+
+   + 使用注解对Servlet进行改造
+   + 使用模板设计模式对Servlet进行改造
+
+   ```java
+   // 匹配以项目名称/dept/下的任意路径
+   @WebServlet(urlPatterns = "/dept/*")
+   public class DeptServlet extends HttpServlet {
+   
+       // 重写service()方法原因是 我们不清除过来的请求是 POST还是GET 这里干脆就直接重写service()方法！！
+       @Override
+       protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+   
+           String requestURI = req.getRequestURI();
+   
+           if (requestURI.contains("/dept/list")) {
+               handleList(req, resp);
+           } else if (requestURI.contains("/dept/delete")) {
+               handleDelete(req, resp);
+           } else if (requestURI.contains("/dept/add")) {
+               handleAdd(req, resp);
+           } else if (requestURI.contains("/dept/detail")) {
+               handleDetail(req, resp);
+           } else if (requestURI.contains("/dept/update")) {
+               handleUpdate(req, resp);
+           }
+   
+       }
+   
+       private void handleUpdate(HttpServletRequest req, HttpServletResponse resp) {
+           // 负责具体的业务实现
+       }
+   
+       private void handleDetail(HttpServletRequest req, HttpServletResponse resp) {
+           // 负责具体的业务实现
+       }
+   
+       private void handleAdd(HttpServletRequest req, HttpServletResponse resp) {
+           // 负责具体的业务实现
+       }
+   
+       private void handleDelete(HttpServletRequest req, HttpServletResponse resp) {
+           // 负责具体的业务实现
+       }
+   
+       private void handleList(HttpServletRequest req, HttpServletResponse resp) {
+           // 负责具体的业务实现
+       }
+   }
+   
+   ```
 
 
 
+### 纯Servlet开发项目的问题
 
+1. 前端代码和java代码耦合在一起，不利于维护。
+2. 前端代码在编写的时候很难发现错误，因为在后端代码中这些前端代码就是一串字符串。
+3. 前端代码运行过程中，如果发现错误，那么需要后端代码重新编译打包，这一过程很繁琐。
 
+### 	BS架构中Session机制
 
+1. 什么是会话？
 
+   + 会话是一种机制，我们也叫做Session。
 
+   + Session存储在服务器端，我们也叫做Session域对象，在服务端获取Session对象也很简单，通过 Requets对象获取Session
 
+     ```java
+     // 如果从Requets对象中没有获取到Session对象，那就新建一个Session对象并返回
+     HttpSession session = req.getSession();
+     
+     //如果从Requets对象中没有获取到Session对象，那就返回一个null
+     HttpSession session = req.getSession(false);
+     ```
 
+   + 当打开浏览器之后，进行了各种操作，浏览商品，发表评论，添加到购物车，购买商品，支付订单，然后关闭浏览器。那么从浏览器打开到关闭这一次过程我们叫做会话。
 
+   + 和打电话一样：从接通到挂断的这过程中，我们就叫做这是一次会话，在这次通话过程中，对方是不是一直知道你是谁？对不对？对方是能够识别你的身份的，基于这点，那么session的设计就由此而来，session可以保证同一个会话中session对象是相同的（为什么相同，下面会说到）。
 
+   + 保证是同一个会话，那只要我保证浏览器不关闭就好了吧？？我们之前学习过请求域对象和全局域对象，这两个域对象都有setAttrubite()、getAttribute()、removeAttribute()方法，高兴的是Session会话域对象也有这几个方法，基于这点，我们是不是就可以通过Session对象来维持一个状态（用户登录状态）。
 
+   + 例如oa系统中，访问非登录界面，先从session中查有没有用户登录的信息，如果没有表示没登录，那就直接回到登录界面，如果有信息，表示登录了，那就让用户继续操作吧！
+
+2. 会话和请求区别？
+
+   + 会话在服务端称之为Session对象，请求在服务端称之为Request对象
+
+   + 会话是浏览器从开启到关闭的这个过程，这个过程中可能会有多次请求。
+   + 一个会话包含多次请求，一个会话包含N次请求。
+
+3. 为什么要使用会话来保存状态？
+
+   + BS架构中，BS两端都要遵循HTTP协议，Http请求其实是无状态的。
+     + 什么是无状态：用户发起请求一次这一瞬间，会和服务器建立连接（通道），那么请求结束之后这个连接（通道）就断开了，为什么是无状态？因为每个请求都是独立的，发起请求建立连接，请求结束就断开。
+     + 设计成无状态的原因：为了减轻服务器压力，要是不断开，一个网站10000人来访问，那岂不是要开10000的连接，这对服务器来说压力太大了！！
+   + 上面分析了使用请求域对象来保存状态不行，那么使用应用域对象呢？
+     + 应用域对象是全局共享的，服务器启动这个应用域对象就被创建了，知道服务器关闭这个应用域对象才被销毁。
+     + 全局共享必定会出问题吧？张三登录了，我们把状态放在个应用域对象中，那么李四过来一查，哦！应用域对象中有信息，那李四你也登录了，继续操作吧？这样不是出问题了！！万一是一个购物网站，那不是乱成一锅了！
+   + 请求域对象、应用域对象都不适合，Session对象就刚好来处理这种问题，只要浏览器不关，那么服务端都是可以识别到你的身份的。浏览器关闭再打开再请求，再服务端又会是一个新的Session对象。
+
+4. Session实现原理？
+
+   + 打开浏览器，访问服务端。
+   + 服务端通过Rquest对象获取Session，获取不到那就新建一个Session对象，并为其生成一个SeesionID（Cookie机制，后面会说），用来标记当前Session，内部使用一个Map对象来保存Session信息，然后将这个SeesionID返回给浏览器
+   + 浏览器保存这个SessionID在内存中，下次再请求时就带上这个SessionID
+   + 浏览器发送第二次(N)次请求，携带上SessionID，服务端就可以根据SessionID到Map对象中找到对应的Session对象，找到了Session对象那就可以确定身份了！
+   + 浏览器关闭之后，存在内存中的SessionID自然也就被干掉了，那么下次再打开浏览器发送请求，之前那个SessionID已经没有了，那么服务器又会给你新建一个Session对象，分配一个SessionID。
+
+5. 禁用cookie怎么解决？
+
+   + 禁用cookie是浏览器禁用的哈，并不是服务端不发送SessionID过来了，只是服务端照常发送但是浏览器不接收了。
+
+   + 要是浏览器不接收，那么也就意味着每次发送的请求携带的SessionID就为空了，那么每次发请求，服务端也就会新生成一个Session对象。
+
+   + 解决禁用cookie问题
+
+     + 通过重写URL：
+
+       ```tex
+       http://localhost:8080/servlet09/session-test;jsessionid=59CF5C0E7DA3F151B270D0A3009CBA41
+       ```
+
+     + 要是浏览器禁用cookie了，那就别使用该系统了！！
+
+6. 回顾一下我们学习到了那些域对象？有什么相同点，不同点？？
+
+   + 三个域对象
+     + 请求域对象 request（HttpServletRequest）
+     + 会话域对象 session （HttpSession）
+     + 应用域对象 application（ServletContext）
+
+   + 作用范围
+
+     request（请求级别） < session（用户级别） < application（应用级别）
+
+   + 使用原则
+
+     尽量使用小的域
+
+   + 相同点
+
+     + 都有三个共同的常用的方法：setAttrubite()、getAttribute()、removeAttribute()。
+     + 可以在域中存储一些轻量级数据。
+
+   + 不同点
+
+     + 生命周期不同
+       + request 一次请求
+       + session 一次会话
+       + application 服务器关闭
+     + 使用场景不同
+
+7. Session时效和手动销毁Session
+
+   + Session默认时效是 30 分钟
+
+     + 在tomcat安装目录/conf/web.xml中有默认配置
+
+       ```xml
+       <!-- ==================== Default Session Configuration ================= -->
+       <!-- You can set the default session timeout (in minutes) for all newly   -->
+       <!-- created sessions by modifying the value below.                       -->
+       
+       <session-config>
+           <session-timeout>30</session-timeout>
+       </session-config>
+       
+       ```
+
+     + 页可以在项目的web.xml中手动配置
+
+       ```xml
+       <session-config>
+           <!-- 设置Session会话时效为 60分钟 -->
+           <session-timeout>60</session-timeout>
+       </session-config>
+       ```
+
+       
+
+       
+
+   + 手动销毁Session
+
+     ```java
+     session.invalidate();
+     ```
+
+     
+
+8. 使用Session对oa项目进行升级
+
+   UserServlet
+
+   ```java
+   if (success) {
+       // 登录成功
+       HttpSession session = req.getSession();
+       session.setAttribute("username", username);
+       resp.sendRedirect(req.getContextPath() + "/dept/list");
+   } else {
+       // 登录失败
+       resp.sendRedirect(req.getContextPath() + "/login-error.jsp");
+   }
+   ```
+
+   UserServlet
+
+   ```java
+   HttpSession session = req.getSession(false);
+   if (session != null && session.getAttribute("username") != null) {
+       // 已经登录，继续处理业务逻辑
+   } else {
+       // 没有登录，重定向去首页(登录界面)
+       resp.sendRedirect(req.getContextPath() + "/index.jsp");
+   }
+   ```
+
+   
+
+## Jsp
+
+### jsp简介和能解决什么问题
+
+1. jsp（java server page），Java服务端页面，Jsp是一个翻译引擎！！
+2. Jsp是一个规范，是JavaEE的13个规范之一。
+3. 分析了纯Servlet开发项目带来的问题之后，我们试想：要是有一个机器能够帮助我们将这部分前端代码按照一定的规则翻译再进行编译，最终变成Java代码，那岂不是避免了纯Servlet开发项目带来的问题，可以减轻很大的工作量！
+4. 其实Jsp技术的出现，就是来解决这个问题的。
+
+### jsp编译过程和原理
+
+1. 我们写的index.jsp/a.jsp文件会通过一定的规则被翻译成java文件，之后再由Jvm虚拟机翻译成字节码文件，换句话说：jsp文件本质就是Java文件。
+
+2. jsp编译过程
+
+   + 新建index.jsp文件
+   + 浏览器输入地址访问index.jsp文件
+   + index.jsp文件被编译成一个index_jsp.java文件
+   + Jvm将这个index_jsp.java文件编译成字节码文件index_jsp.class，再加载到内存中
+   + 浏览器本质访问的就是这个字节码文件
+
+3. Jsp编译原理
+
+   + 编写index.jsp，浏览器访问之后会在 "IDEA默认生成的目录\work\Catalina\localhost\jsp\org\apache\jsp" 生成两个文件，一个是Java源文件（ index_jsp.java）另一个是字节码文件（ index_jsp.class）。路径不清楚可以在IDEA控制台中观察 Using CATALINA_BASE对应的值。
+
+   + 分析一下  index_jsp.java 文件
+
+     ```java
+     // index_jsp 继承了 HttpJspBase类
+     public final class index_jsp extends org.apache.jasper.runtime.HttpJspBase
+         implements org.apache.jasper.runtime.JspSourceDependent,
+     org.apache.jasper.runtime.JspSourceImports {
+     
+     }
+     
+     // HttpJspBase 继承了HttpServlet
+     public abstract class HttpJspBase extends HttpServlet implements HttpJspPage {}
+     ```
+
+   + 可以得出结论：Jsp文件本质是Servlet，Servlet拥有的生命周期Jsp也照样拥有，Jsp也是一个单例(假单例)，简单看一下 HttpJspBase类。
+
+     ```java
+     public abstract class HttpJspBase extends HttpServlet implements HttpJspPage {
+         // 无参构造
+         protected HttpJspBase() {
+         }
+     
+         // init
+         @Override
+         public final void init(ServletConfig config)
+             throws ServletException
+         {
+             super.init(config);
+             jspInit();
+             _jspInit();
+         }
+     
+         @Override
+         public String getServletInfo() {
+             return Localizer.getMessage("jsp.engine.info", Constants.SPEC_VERSION);
+         }
+     
+         @Override
+         public final void destroy() {
+             jspDestroy();
+             _jspDestroy();
+         }
+     
+         /**
+          * service 方法切入点
+          * Entry point into service.
+          */
+         @Override
+         public final void service(HttpServletRequest request, HttpServletResponse response)
+             throws ServletException, IOException
+         {
+             _jspService(request, response);
+         }
+         // ...
+     }
+     ```
+
+   + 刚刚说了，Jsp文件会被编译成Java文件，再编译成字节码文件加载到内存中,我们再Jsp文写入的内容，被编译成Java文件之后，是怎样一个形态呢？
+
+     + index.jsp
+
+       ```html
+       <!DOCTYPE html>
+       <html lang="en">
+           <head>
+               <meta charset="UTF-8">
+               <meta http-equiv="X-UA-Compatible" content="IE=edge">
+               <meta name="viewport" content="width=device-width, initial-scale=1.0">
+               <title>JSP Page</title>
+           </head>
+           <body>
+               <h2>Jsp Page!!</h2>
+           </body>
+       </html>
+       ```
+
+       
+
+     + index_jsp.class
+
+       ```java
+       // 其他方法省略了，这里主要看service代码执行过程
+       public void _jspService(final jakarta.servlet.http.HttpServletRequest request, final jakarta.servlet.http.HttpServletResponse response)
+           throws java.io.IOException, jakarta.servlet.ServletException {
+       
+           if (!jakarta.servlet.DispatcherType.ERROR.equals(request.getDispatcherType())) {
+               final java.lang.String _jspx_method = request.getMethod();
+               // 方法判断
+               if ("OPTIONS".equals(_jspx_method)) {
+                   response.setHeader("Allow","GET, HEAD, POST, OPTIONS");
+                   return;
+               }
+       
+               if (!"GET".equals(_jspx_method) && !"POST".equals(_jspx_method) && !"HEAD".equals(_jspx_method)) {
+                   response.setHeader("Allow","GET, HEAD, POST, OPTIONS");
+                   response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "JSP 只允许 GET、POST 或 HEAD。Jasper 还允许 OPTIONS");
+                   return;
+               }
+           }
+       
+           final jakarta.servlet.jsp.PageContext pageContext;
+           jakarta.servlet.http.HttpSession session = null;
+           final jakarta.servlet.ServletContext application;
+           final jakarta.servlet.ServletConfig config;
+           jakarta.servlet.jsp.JspWriter out = null;
+           final java.lang.Object page = this;
+           jakarta.servlet.jsp.JspWriter _jspx_out = null;
+           jakarta.servlet.jsp.PageContext _jspx_page_context = null;
+       
+       
+           try {
+               // 设置响应字符编码(注意这里没指定字符串，出现中文会乱码)
+               response.setContentType("text/html");
+               pageContext = _jspxFactory.getPageContext(this, request, response,
+                                                         null, true, 8192, true);
+               _jspx_page_context = pageContext;
+               application = pageContext.getServletContext();
+               config = pageContext.getServletConfig();
+               session = pageContext.getSession();
+               out = pageContext.getOut();
+               _jspx_out = out;
+       
+               // 这部分代码是不是和纯Servlet的oa项目一模一样??当时我们也是这么干的!!
+               // 当我们用了Jsp之后，这部分代码由机器帮我们干了
+               //**************************************************************************
+               out.write("<!DOCTYPE html>\n");
+               out.write("<html lang=\"en\">\n");
+               out.write("<head>\n");
+               out.write("    <meta charset=\"UTF-8\">\n");
+               out.write("    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n");
+               out.write("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+               out.write("    <title>JSP Page</title>\n");
+               out.write("</head>\n");
+               out.write("<body>\n");
+               out.write("<h2>Jsp Page!!</h2>\n");
+               out.write("</body>\n");
+               out.write("</html>");
+               //**************************************************************************
+           } catch (java.lang.Throwable t) {
+               if (!(t instanceof jakarta.servlet.jsp.SkipPageException)){
+                   out = _jspx_out;
+                   if (out != null && out.getBufferSize() != 0)
+                       try {
+                           if (response.isCommitted()) {
+                               out.flush();
+                           } else {
+                               out.clearBuffer();
+                           }
+                       } catch (java.io.IOException e) {}
+                   if (_jspx_page_context != null) _jspx_page_context.handlePageException(t);
+                   else throw new ServletException(t);
+               }
+           } finally {
+               _jspxFactory.releasePageContext(_jspx_page_context);
+           }
+       }
+       }
+       ```
+
+     + 解决响应中文乱码问题
+
+       ```xml
+       <!-- contentType 默认是 ISO-8859-1 -->
+       <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+       ```
+
+        
+
+### Jsp语法
+
+1. page指令
+
+   + 响应中文乱码问题演示过
+
+     ```java
+     <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+     ```
+
+     ![image-20230306200220554](../../.vuepress/public/image-20230306200220554.png)
+
+2. <%%>
+
+   + <% java代码 %>，这里面的Java会最终被编译到service方法的内部，至于方法的内部那些语法可以写那些语法不能写，这点webapp开发人员应该要明白！！
+
+   + service中有9大内置对象，这就9大内置对象只能在<%%>里面使用。
+
+     ```java
+     // exception 内置对象
+     
+     // serivice方法有2个参数 request和response
+     
+     // service返回发内部定义了6个对象
+     final jakarta.servlet.jsp.PageContext pageContext;
+     jakarta.servlet.http.HttpSession session = null;
+     final jakarta.servlet.ServletContext application;
+     final jakarta.servlet.ServletConfig config;
+     jakarta.servlet.jsp.JspWriter out = null;
+     final java.lang.Object page = this;
+     ```
+
+   + 注意点：
+
+     + 方法内部定义局部变量不能添加修饰符吧！
+     + 方法内部不能再定义方法吧！
+     + 方法内部不能定义代码块吧！
+     + 语句结束要加
+
+     
+
+3. <%! %>
+
+   + <%! java代码 %>，这里面的Java会最终被编译到service方法的外部，类里面，至于这里面那些语法可以写那些语法不能写，webapp开发人员应该要明白！！
+   + 我们可以在<%! java代码 %>里面写静态代码块，或者静态变量等等，但是不推荐哈，因为Tomcat是多线程的，多线程并发时静态变量会带来安全问题。
+
+4. <%-- --%>
+
+   + 这是Jsp注释语法，被注释的信息不会编译到类中
+
+5. Jsp输出语法
+
+   + 我们可以通过9大内置对象的 out来实现
+
+     ```java
+     <% out.write("hello jsp"); %>
+     ```
+
+6. <%= %>
+
+   + <%= name %>会被翻译到service方法内部，翻译成 out.print(name);
+
+### Jsp和Servlet区别
+
+1. Jsp本质就是Servlet，那么Jsp和Servlet有啥区别？？
+   + 职责不同
+     + Jsp：数据展示和数据收集
+     + Servlet：负责业务逻辑处理
+
+### 使用Jsp改造oa项目 
+
+1. 实现思路
+
+   + 具体业务逻辑交给Servlet来处理
+   + 界面展示和数据收集交给Jsp来实现
+
+2. 分析现在oa项目存在的问题？？
+
+   + 作为一个系统，并不想任何人都可以访问这个系统并且随机的操作！！
+   + 说白了，这系统没有一点安全性！！
+
+3. 加一个登录功能吧。
+
+   + 准备数据表 user
+
+     ```sql
+     drop table if exists t_user;
+     create table t_user(
+         id int primary key auto_increment,
+         username varchar(30),
+         password varchar(255)
+     );
+     
+     insert into 
+     	t_user 
+     values
+         (1, 'admin', '123456'),
+         (2, 'zhangsan', '123456');
+     
+     select id, username, password from t_user;
+     ```
+
+     
+
+   + 新建一个UserServlet，在这个Servlet中处理登录逻辑
+
+   + 将index.jsp改造成登录界面，登录成功去 list.jsp
+
+   + 再准备一个login-error.jsp，登录失败直接跳转到这个界面
+
+4. 加一个登录功能之后，貌似也没解决啥问题。
+
+   + 目前这个登录就是一个摆设，啥用没有！
+   + 如果用户知道知道url地址照样可以随意操作！
+   + 为了解决这个问题，接下来我们学习Session来解决这个问题！
+   + 回到Servlet学习篇章继续学习Session哈！！！
 
 
 
