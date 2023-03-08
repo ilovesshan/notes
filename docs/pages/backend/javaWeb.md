@@ -2541,7 +2541,96 @@
    }
    ```
 
-   
+
+
+### Cookie
+
+1. 什么是Cookie？
+
+   + 回顾一下Session的执行流程，浏览器第一次访问服务器的时候，服务端会返回一个JSESSIONID，例如：
+
+     ```
+     Set-Cookie: JSESSIONID=91CD8DD5E86334382EC828B33DF8142C; Path=/servlet09; HttpOnly
+     ```
+
+   + 其实这一串：JSESSIONID=91CD8DD5E86334382EC828B33DF8142C字符串就是一个cookie对象。
+
+   + 当然这一串字符串，我们可以在服务端进行操作，Java服务端有一个Cookie对象可以来操作Cookie相关信息。
+
+   + 浏览器携带Cookie机制：在HTTP协议中，浏览器访问服务端时，默认会携带上对应path下的Cookie信息到服务端。
+
+2. Cookie和Session关系
+
+   + Cookie和Session技术并不属于服务端（Java、php）等等，确切的说他们两应该属于Http协议的一部分。
+   + Cookie和Session可以说是相辅相成，Cookie和Session都可以用来保存状态。
+   +  Cookie保存在浏览器。
+     + 存在磁盘上
+     + 存在内存中
+   + Session保存在服务器。
+
+3. Cookie使用场景（案例）
+
+   + 购物网站，不登录也可以将商品添加到购物车，关闭浏览器再次打开时任然可以看到购物车的商品。
+     + 可以在Cookie中保存购物车的商品信息，并把Cookie持久化存在磁盘上。关闭浏览器并不影响Cookie信息。
+     + 再次打开浏览器时，如果要看购物车，那就通过Cookie中保存的商品信息去服务端查询一下，做个展示即可！！
+   + 十天免登录。
+     + 可以在服务端通过设置Cookie的过期时间，来实现这个功能！
+
+4. Java中操作Cookie对象
+
+   + 服务端操作Cookie对象，并响应给浏览器。
+
+     ```java
+     // 传递一个key和value 
+     Cookie cookie = new Cookie("UUID", UUID.randomUUID().toString());
+     resp.addCookie(cookie);
+     ```
+
+     ![image-20230307221738428](../../.vuepress/public/image-20230307221738428.png)
+
+   + 设置cookie过期时间
+
+     ```java
+     // 单位 秒
+     cookie.setMaxAge(int expiry);
+     ```
+
+     + 过期时间大于0，会将cookie保存在磁盘中。
+     + 过期时间等于0，删除cookie，删除同名的cookie。
+     + 过期时间小于0，和不设置过期时间效果一样，session会被保存在内存中。
+
+   + 设置cookie关联path
+
+     + http://localhost:8080/servlet09/session-test，默认会关联到http://localhost:8080/servlet09/以及该路径的子路径下
+
+     + 手动设置关联path
+
+       ```java
+       cookie.setPath(req.getServletPath());
+       ```
+
+     
+
+   + 服务端获取浏览器携带的cookie信息。
+
+     ```java
+     // 获取浏览器传递的cookie
+     // 如果获取不到会返回null, 获取到了返回一个Cookie数组
+     Cookie[] cookies = req.getCookies();
+     if (cookies != null) {
+         for (Cookie cookie : cookies) {
+             String name = cookie.getName();
+             String value = cookie.getValue();
+             System.out.println(name + " = " + value);
+         }
+     }
+     // JSESSIONID = 35E1E77EB167CD6AE9B488843F549F1F
+     // UUID = 9d9a1f43-ad4e-4b78-b92c-5b4bc5124d58
+     ```
+
+5. 使用Cookie实现oa系统10天免登录！！
+
+
 
 ## Jsp
 
@@ -2740,13 +2829,52 @@
 
 1. page指令
 
+   ![image-20230306200220554](../../.vuepress/public/image-20230306200220554.png)
+
+   
+
    + 响应中文乱码问题演示过
 
-     ```java
-     <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+     ```jsp
+     <%-- 两句指令是一样的--%>
+     <%@ page language="java" contentType="text/html; charset=UTF-8"%>
+     <%@ page language="java" contentType="text/html" pageEncoding="UTF-8"%>
      ```
 
-     ![image-20230306200220554](../../.vuepress/public/image-20230306200220554.png)
+   + 错误界面
+
+     ```jsp
+     <%@ page isErrorPage="true" %>
+     
+     <%
+     // 需要isErrorPage=true 才能使用exception对象
+     // 将当前错误的堆栈信息打印到控制台上
+     exception.printStackTrace();
+     %>
+     ```
+
+   + 启用/禁用session
+
+     ```jsp
+     <%-- false表示禁用session， 默认true --%>
+     <%@ page session="false" %>
+     ```
+
+     + 如果设置为 session="true" /（不设置），jsp被编译之后的Java文件中
+
+       ```java
+       jakarta.servlet.http.HttpSession session = null;
+       // 如果获取不到就创建一个新的session对象
+       session = pageContext.getSession();
+       ```
+
+     + 如果设置为 session="false"，jsp被编译之后的Java文件中 
+
+       ```java
+       // 被编译之后的Java文件中压根不存在 session对象
+       ```
+
+     
 
 2. <%%>
 
@@ -2853,9 +2981,390 @@
    + 为了解决这个问题，接下来我们学习Session来解决这个问题！
    + 回到Servlet学习篇章继续学习Session哈！！！
 
+### Jsp九大域对象
+
+1. pageContext
+2. servletRequest
+3. httpSession
+4. applicationContext
+5. exception
+6. out
+7. response
+8. servletConfig
+9. page
 
 
 
+## EL表达式
+
+### EL表达式介绍
+
+1. 什么是EL表达式介绍
+
+   + EL表达式 （Express Lanuage）
+   + EL表达市也属于Jsp的一部分，EL表达式的出现主要是用来代替Jsp文件中的Java代码
+   + 之前在Jsp文件中写的指令：<%%>，<%! %>，<%= %> 既不美观又繁琐，那么使用EL表达式就可以解决这个问题。
+
+2. EL表达式三大功效
+
+   + 从域中获取数据
+     + EL表达式只能从域中获取数据，四个域范围：pageContext < request < session < application。
+     + EL表达式获取数据顺序从小范围到大范围，如果获取到就响应空字符串到浏览器。
+   + 转变成字符串
+     + EL表达式 ${username}， 本质还是会被翻译成Java代码，   out.write(username);
+     + ${data}， 默认会调用data对象的toString方法。
+   + 响应给浏览器
+
+3. 感受一下EL表达式的魅力
+
+   ```jsp
+   <%-- 向请求域中绑定数据 --%>
+   <% request.setAttribute("username", "ilovesshan"); %>
+   
+   <%-- 从请求域中获取数据 --%>
+   <%= request.getAttribute("username") %>
+   
+   <%-- 使用EL表达式, 从请求域中获取数据--%>
+   ${username}
+   ```
 
 
+
+### EL表达式基本使用
+
+1. 获取域中信息
+
+   ```jsp
+   <%
+   request.setAttribute("username", "ilovesshan");
+   request.setAttribute("password", "123456");
+   %>
+   
+   ${username}
+   ${password}
+   ```
+
+   ```jsp
+   <%
+   pageContext.setAttribute("data", "pageContext");
+   request.setAttribute("data", "request");
+   session.setAttribute("data", "session");
+   application.setAttribute("data", "session");
+   %>
+   
+   ${data}
+   ```
+
+   
+
+2. 获取指定域中信息
+
+   ```jsp
+   <%
+   pageContext.setAttribute("data", "pageContext");
+   request.setAttribute("data", "request");
+   session.setAttribute("data", "session");
+   application.setAttribute("data", "application");
+   %>
+   
+   <%--获取page域中信息--%>
+   ${pageScope.data}
+   
+   <%--获取请求域中信息, 注意这个requestScope并不是真正的HttpServletRequest --%>
+   ${requestScope.data}
+   
+   <%--获取会话域中信息, 注意这个sessionScope并不是真正的HttpSession--%>
+   ${sessionScope.data}
+   
+   <%--获取应用域中信息, 注意这个applicationScope并不是真正的ApplicationContext--%>
+   ${applicationScope.data}
+   ```
+
+   
+
+3. 获取实体类/Map对象信息
+
+   ```jsp
+   <%
+   Address address = new Address("四川省巴中市平昌县");
+   User user = new User("ilovesshan", "123456", address);
+   request.setAttribute("user", user);
+   %>
+   
+   <%-- 直接通过.的方式获取, 也可以通过[] 方式获取--%>
+   <%-- ${xx.yy}底层原理就是：调用xx的getYy方法--%>
+   ${user.username}
+   ${user.password}
+   ${user.address.city}
+   
+   <%-- 上面是使用EL表达式的写法， 下面是原始写法， 获取到的数据是一样的--%>
+   <%=
+       ((User) request.getAttribute("user")).getUsername()
+       %>
+   
+   <%=
+       ((User) request.getAttribute("user")).getPassword()
+       %>
+   
+   <%=
+       ((User) request.getAttribute("user")).getAddress().getCity()
+       %>
+   ```
+
+   ```jsp
+   <%
+   HashMap<String, String> hashMap = new HashMap<>();
+   hashMap.put("username", "ilovesshan");
+   request.setAttribute("hashMap", hashMap);
+   %>
+   
+   <%
+   HashMap<String, User> userHashMap = new HashMap<>();
+   userHashMap.put("u1", new User("winnie", "123456", null));
+   request.setAttribute("userHashMap", userHashMap);
+   %>
+   
+   ${hashMap.username}
+   
+   ${userHashMap.u1.username}
+   ```
+
+   
+
+4. 获取数组/List/Set对象信息
+
+   ```jsp
+   <%
+   ArrayList<String> names = new ArrayList<>();
+   names.add("zhangSan");
+   names.add("lisi");
+   names.add("wangWu");
+   request.setAttribute("names", names);
+   %>
+   
+   <%
+   String[] letters = {"A", "B", "C"}; 
+   request.setAttribute("letters", letters);
+   %>
+   
+   
+   <%-- 即使是下标越界也不会报异常--%>
+   ${names[0]}
+   ${names[1]}
+   
+   ${letters[0]}
+   ${letters[1]}
+   ```
+
+5. EL表达式中获取 contextPath
+
+   + 要想获取 contextPath那我们需要先得到request对象，通过request.getContextPath()就可以拿到了。
+
+   + 可惜的是，EL表达式中没有request这个对象，EL表达式中有四个隐藏的域对象：pageScope、requestScope（并不等同于request对象）、sessionScope、applicationScope。
+
+   + 但是在EL表达式中有一个隐式对象：pageContext，这个pageContext和Jsp中九大内置对象中的pageContext是同一个。我们就可以通过pageContext来获取request对象，获取到了request对象就能获取contextPath了。
+
+     ```jsp
+     ${pageContext.request.contextPath}
+     ```
+
+6. ${abc} 和 ${"abc"} 区别
+
+   + ${abc}：表示从某个域中获取name为 abc的数据。
+   + ${"abc"}：表示将abc作为字符串输出到浏览器。
+
+### 	EL表达式隐式对象
+
+1. pageContext，上面介绍过了。
+
+2. param，获取Uri后面的query参数。
+
+   http://localhost:8080/jsp/8.jsp?username=ilovesshan&age=10
+
+   ```jsp
+   <%--Java代码获取--%>
+   <%
+   String username = request.getParameter("username");
+   String age = request.getParameter("age");
+   %>
+   <%= username%>
+   <%= age%>
+   
+   <br/>
+   
+   <%--EL表达式获取--%>
+   ${param.username}
+   ${param.age}
+   ```
+
+   ![image-20230308201525361](../../.vuepress/public/image-20230308201525361.png)
+
+   
+
+3. paramValues，获取Uri后面的query参数（列表）。
+
+   http://localhost:8080/jsp/9.jsp?hobby=read&hobby=sport&hobby=code
+
+   ```jsp
+   <%--Java代码获取--%>
+   <%
+   String[] hobbies = request.getParameterValues("hobby");
+   %>
+   
+   <%-- 这是一个数组 --%>
+   <%= hobbies%>
+   <%= hobbies[0]%>
+   <%= hobbies[1]%>
+   
+   <%-- 这是一个数组 --%>
+   ${paramValues.hobby}
+   ${paramValues.hobby[0]}
+   ${paramValues.hobby[1]}
+   ${paramValues.hobby[2]}
+   ```
+
+   ![image-20230308201645072](../../.vuepress/public/image-20230308201645072.png)
+
+   
+
+4. initParm，获取web.xml中配置的初始化参数。
+
+   ```xml
+   <web-app>
+       <context-param>
+           <param-name>baseUrl</param-name>
+           <param-value>https:ilovesshan.github.io</param-value>
+       </context-param>
+   
+       <context-param>
+           <param-name>timeOut</param-name>
+           <param-value>5000</param-value>
+       </context-param>
+   </web-app>
+   ```
+
+   ```jsp
+   <%-- Jsp的application对象就相当于Servlet的ServletContext对象--%>
+   <%
+   String baseUrl = application.getInitParameter("baseUrl");
+   String timeOut = application.getInitParameter("timeOut");
+   %>
+   
+   <%= baseUrl%>
+   <%= timeOut%>
+   
+   <br/>
+   
+   ${initParam.baseUrl}
+   ${initParam.timeOut}
+   ```
+
+   ![image-20230308202244658](../../.vuepress/public/image-20230308202244658.png)
+
+   
+
+### EL表达式运算符
+
+1. 算数
+   + "+" 只做值运算
+2. 关系
+   + "==" 、"!="、 "eq"  都会调用对象的equals方法
+3. 条件
+4. 逻辑
+5. 取值
+6. empty 
+   + ${empty data}，判断data是否为空，如果为空返回true，否则返回false
+
+## JSTL标签库
+
+### JSTL标签库介绍
+
+1. JSTL（Java Standard Tag Lib）JSP标准标签库，它封装了JSP应用的通用核心功能。
+2. JSTL标签库支持通用的（常用）、结构化的任务，比如迭代，条件判断，XML文档操作，国际化标签，SQL标签。
+3. JSTL标签库主要和EL表达式一起使用，目的就是干掉 Jsp文件中的Java代码。
+
+### JSTL导入
+
+1. jar包下载
+
+   + Tomcat10.x +
+     + [jakarta.servlet.jsp.jstl-2.0.0](https://repo1.maven.org/maven2/org/glassfish/web/jakarta.servlet.jsp.jstl/2.0.0/)
+     + [jakarta.servlet.jsp.jstl-api-2.0.0](https://repo1.maven.org/maven2/jakarta/servlet/jsp/jstl/jakarta.servlet.jsp.jstl-api/2.0.0/)
+   + Tomcat10.x -
+     + [javax.servlet.jsp.jstl-1.2.5](https://repo1.maven.org/maven2/org/glassfish/web/javax.servlet.jsp.jstl/1.2.5/)
+     + [taglibs-standard-1.2.5](https://repo1.maven.org/maven2/org/apache/taglibs/taglibs-standard/1.2.5/)
+
+2. 在WEB-INF文件夹下新建 lib，将jar包复制到lib目录下，然后选中jar包执行 Add as Libary...操作就ok了
+
+3. 在jsp文件中引入jstl标签库
+
+   ```jsp
+   <%-- 导入jstl标签核心库 --%>
+   <%-- uri文件地址指向了 jakarta.servlet.jsp.jstl-2.0.0.jar!/META-INF/c.tld --%>
+   <%-- c.tld 文件定义了 jstl标签库的规范 --%>
+   <%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+   ```
+
+   
+
+### JSTL常用标签库
+
+1. \<c:forEach>\</c:forEach>
+
+   ```jsp
+   <%
+   ArrayList<User> users = new ArrayList<>();
+   users.add(new User("ilovesshan", "ilovesshan123456", null));
+   users.add(new User("winnie", "1winnie23456", null));
+   users.add(new User("lucy", "lucy123456", null));
+   request.setAttribute("users", users);
+   %>
+   
+   <c:forEach items="${users}" var="user" varStatus="status">
+       <p>编号：${status.count}， 姓名：${user.username}， 密码：${user.password}</p>
+   </c:forEach>
+   ```
+
+   ```jsp
+   <c:forEach begin="0" end="20" var="n" step="2">
+       <p>${n}</p>
+   </c:forEach>
+   ```
+
+   
+
+2. \<c:if test="">\</c:if>
+
+   ```jsp
+   <%
+   request.setAttribute("num", 22);
+   %>
+   
+   <c:if test="${num > 18}">
+       成年人
+   </c:if>
+   
+   <c:if test="${not (num > 18)}">
+       未成年
+   </c:if>
+   ```
+
+   
+
+3. \<c:choose>、 \<c:when>、 \<c:otherwise>
+
+   ```jsp
+   <%
+   request.setAttribute("score", 70);
+   %>
+   
+   <c:choose>
+       <c:when test="${score >80}">优秀</c:when>
+       <c:when test="${score >70}">良好</c:when>
+       <c:when test="${score >60}">及格</c:when>
+       <c:otherwise>不及格</c:otherwise>
+   </c:choose>
+   ```
+
+4. 剩余的标签...，等需要用到了再[查文档](https://www.runoob.com/jsp/jsp-jstl.html)吧！！！
 
