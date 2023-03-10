@@ -2125,11 +2125,13 @@
              }
          }
      
-         public Connection getConnection() throws SQLException {
+         private DBUtil() {}
+     
+         public static Connection getConnection() throws SQLException {
              return DriverManager.getConnection(url, username, password);
          }
      
-         public void close(Connection conn, Statement stat, ResultSet res) {
+         public static void close(Connection conn, Statement stat, ResultSet res) {
              if (res != null) {
                  try {
                      res.close();
@@ -3887,3 +3889,472 @@
    }
    ```
 
+
+
+## MVC架构模式
+
+### 数据库脚本
+
+```sql
+create database javaweb_mvc;
+
+use javaweb_mvc;
+
+# 创建账户表
+create table account(
+    id int primary key auto_increment,
+    username varchar(20),
+    account decimal(10,2)
+);
+
+insert into account(username, account) values ("ilovesshan", 1000.00),("admin", 0.00);
+
+select id, username, account from account;
+```
+
+
+
+### 不使用MVC架构开发项目
+
+1. 使用Servlet+jsp完成转账的功能（所有的业务逻辑均在Servlet中处理，包括数据库连接、事务管理等等操作）
+
+   + 获取交易双方账户和交易金额
+   + 判断余额是否充足
+   + 处理对应账户出账和入账
+   +  如果遇到异常，需要及时回滚并打印错误信息
+
+   ```java
+   @WebServlet("/account/transfer")
+   public class TransferServlet extends HttpServlet {
+   
+       private static final String driver = "com.mysql.cj.jdbc.Driver";
+       private static final String url = "jdbc:mysql://localhost:3306/javaweb_mvc?serverTimezone=UTC&characterEncoding=utf8&useUnicode=true&useSSL=false";
+       private static final String username = "root";
+       private static final String password = "123456";
+   
+       static {
+           try {
+               Class.forName(driver);
+           } catch (ClassNotFoundException e) {
+               e.printStackTrace();
+           }
+       }
+   
+       @Override
+       protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+   
+           resp.setContentType("text/html;charset=utf-8");
+           PrintWriter writer = resp.getWriter();
+   
+           String from = req.getParameter("from");
+           String to = req.getParameter("to");
+           String account = req.getParameter("account");
+   
+           // 获取交易双方账户和交易金额
+           Connection conn = null;
+           PreparedStatement ps = null;
+           ResultSet rs = null;
+           try {
+               conn = DriverManager.getConnection(url, username, password);
+               conn.setAutoCommit(false);
+               String sql = "select account from account where username like ?";
+               ps = conn.prepareStatement(sql);
+               ps.setString(1, from);
+               rs = ps.executeQuery();
+               // 判断余额是否充足
+               if (rs.next()) {
+                   if (rs.getDouble("account") < Double.parseDouble(account)) {
+                       throw new AppException("账户余额不足");
+                   }
+               }
+   
+               //  处理对应账户出账和入账
+               String sql1 = "update `account` set account= account - ? where username = ?";
+               String sql2 = "update `account` set account= account + ?  where username = ?";
+   
+               ps = conn.prepareStatement(sql1);
+               ps.setString(1, account);
+               ps.setString(2, from);
+               int i1 = ps.executeUpdate();
+   
+               ps = conn.prepareStatement(sql2);
+               ps.setString(1, account);
+               ps.setString(2, to);
+               int i2 = ps.executeUpdate();
+   
+               conn.commit();
+               if ((i1 + i2) == 2) {
+                   // ok
+                   System.out.println("转账成功, 请查看数据库信息!");
+                   writer.print("转账成功, 请查看数据库信息!");
+   
+               } else {
+                   // 失败
+                   throw new AppException("转账失败");
+               }
+   
+           } catch (Exception e) {
+               try {
+                   if (conn != null) {
+                       conn.rollback();
+                   }
+               } catch (SQLException ex) {
+                   ex.printStackTrace();
+               }
+               e.printStackTrace();
+               // 如果遇到异常，需要及时回滚并打印错误信息
+               writer.print("操作失败：" + e.getMessage());
+           } finally {
+               if (rs != null) {
+                   try {
+                       rs.close();
+                   } catch (SQLException e) {
+                       e.printStackTrace();
+                   }
+               }
+   
+               if (ps != null) {
+                   try {
+                       ps.close();
+                   } catch (SQLException e) {
+                       e.printStackTrace();
+                   }
+               }
+   
+               if (conn != null) {
+                   try {
+                       conn.close();
+                   } catch (SQLException e) {
+                       e.printStackTrace();
+                   }
+               }
+           }
+       }
+   }
+   
+   ```
+
+2. 分析上面代码问题
+
+   + TransferServlet中做的事情
+
+     + 具体业务逻辑处理
+     + 数据库连接和对应的CRUD
+     + 负责页面展示
+
+   + 总结：
+
+     + TransferServlet类负责了太多的职责，没有达到各司其职的效果，没有公共组件的概念。
+
+     + TransferServlet类的中的代码耦合性太高了（业务代码、数据库CRUD代码），阅读性太差了而且代码不易于维护。
+
+   
+
+### MVC架构模式
+
+1. MVC架构模式核心思想：各个模块，各司其职。
+
+   + M（Model）负责业务和数据处理
+
+   + V（View）负责视图展示
+
+   + C（Controller）负责调度M和V
+
+     
+
+2. 横看：MCV架构
+
+   ![image-20230310184855608](../../.vuepress/public/image-20230310184855608.png)
+
+   
+
+3. 竖看：三层架构
+
+   ![image-20230310201552876](../../.vuepress/public/image-20230310201552876.png)
+
+
+
+### Dao设计模式
+
+1. Dao设计模式介绍
+
+   + Dao设计模式属于JavaEE设计模式，注意哈Dao设计模式并不属于23中设计模式中的任意一种。
+
+   + XxxDao类，代表着这个类只负责对数据库的表进行CRUD，不负责具体业务逻辑，注意：不负责任何具体业务逻辑！！
+
+   + 一般情况，一个Dao类对应一张表，Dao的命名规范XxxDao，Xxx一般和数据表（或者业务模块）命名。
+
+     + 负责用户表CRUD：UserDao
+     + 负责订单表CRUD：OrderDao
+
+     + ...
+
+2. 举个例子，账户表：AccountDao
+
+   ```java
+   public class AccountDao {
+   
+       /**
+        * 新增账户
+        *
+        * @param account 账户对象
+        * @return 操作结果返回值
+        */
+       public int insert(Account account) {
+           return 0;
+       }
+   
+       /**
+        * 更新账户
+        *
+        * @param account 账户对象
+        * @return 操作结果返回值
+        */
+       public int update(Account account) {
+           return 0;
+       }
+   
+   
+       /**
+        * 根据ID删除账户
+        *
+        * @param id 账户id
+        * @return 操作结果返回值
+        */
+       public int deleteById(int id) {
+           return 0;
+       }
+   
+   
+       /**
+        * 根据账户名称查询账户
+        *
+        * @param name 账户名称
+        * @return 查询结果
+        */
+       public Account selectByName(String name) {
+           return null;
+       }
+   
+   
+       /**
+        * 根据账户ID查询账户
+        *
+        * @param id 账户ID
+        * @return 查询结果
+        */
+       public Account selectById(int id) {
+           return null;
+       }
+   
+       /**
+        * 查询账户列表
+        *
+        * @return 查询结果
+        */
+       public List<Account> selectList() {
+           return null;
+       }
+   }
+   
+   ```
+
+   
+
+3. JavaBean、Pojo、Domain简单区分和总结
+
+   + 区别
+     + JavaBean：（咖啡豆）主要是用于封装Java对象，便于数据传递。
+     + Pojo：（Plain Old Java Object）简单的java对象，POJO的内在含义是指那些没有从任何类继承、也没有实现任何接口，更没有被其它框架侵入的java对象。主要也是便于数据传递。
+     + Domain：（领域实体模型）主要也是便于数据传递。
+   + 总结
+     + 都主要是用于封装数据以及数据传递。
+     + 有的人喜欢叫：JavaBean、也有的人喜欢叫：Pojo，看自己喜好吧！！
+
+
+
+### ThreadLocal
+
+[ThreadLocal介绍](https://zhuanlan.zhihu.com/p/102744180 )
+
+1. 手写一个简单的ThreadLocal类
+
+   ```java
+   public class MyLocalThread<T> {
+       private final Map<Thread, T> map = new HashMap<>();
+   
+       public T set(T object) {
+           return map.put(Thread.currentThread(), object);
+       }
+   
+       public T get() {
+           return map.get(Thread.currentThread());
+       }
+   
+       public void remove() {
+           map.remove(Thread.currentThread());
+       }
+   }
+   
+   ```
+
+   ```java
+   public class Connection {
+   
+       private Connection() {
+       }
+   
+       private static final MyLocalThread<Connection> map = new MyLocalThread<>();
+   
+       public static Connection getConnection() {
+           Connection connection = map.get();
+           if (connection == null) {
+               connection = new Connection();
+               map.set(connection);
+           }
+           return connection;
+       }
+   }
+   ```
+
+   ```java
+   public class MyLocalHostTest {
+       public static void main(String[] args) {
+           new UserService().save();
+       }
+   }
+   
+   
+   class UserService {
+       public void save() {
+           Connection connection = Connection.getConnection();
+           System.out.println("UserService connection = " + connection);
+           new UserDao().insert();
+       }
+   }
+   
+   
+   class UserDao {
+       public void insert() {
+           Connection connection = Connection.getConnection();
+           System.out.println("UserDao connection = " + connection);
+           System.out.println("UserDao insert...");
+       }
+   }
+   ```
+
+   ```java
+   // 通过MyLocalThread 可以保证我们拿到的connection对象在 UserService和UserDao层是同一个，那就可以很好的控制事务了
+   UserService connection = com.local.Connection@214c265e
+   UserDao connection = com.local.Connection@214c265e
+   UserDao insert...
+   ```
+
+   
+
+2. 通过ThreradLocal来解决MVC架构模式中对于数据库事务控制！！
+
+   ```java
+   package com.ilovesshan.mvc.util;
+   
+   import java.sql.*;
+   import java.util.ResourceBundle;
+   
+   public class DBUtil {
+       // 存储当前线程对应的Connection对象
+       private static final ThreadLocal<Connection> threadLocal = new ThreadLocal<>();
+   
+       private static final ResourceBundle resourceBundle = ResourceBundle.getBundle("jdbc");
+       private static final String driver = resourceBundle.getString("driver");
+       private static final String url = resourceBundle.getString("url");
+       private static final String username = resourceBundle.getString("username");
+       private static final String password = resourceBundle.getString("password");
+   
+       static {
+           try {
+               Class.forName(driver);
+           } catch (ClassNotFoundException e) {
+               e.printStackTrace();
+           }
+       }
+   
+       private DBUtil() {
+       }
+   
+       public static Connection getConnection() throws SQLException {
+           // 保证每个线程取到的Connection都是属于自己线程对应的Connection
+           Connection connection = threadLocal.get();
+           if (connection == null) {
+               connection = DriverManager.getConnection(url, username, password);
+               threadLocal.set(connection);
+           }
+           return connection;
+       }
+   
+       public static void close(Connection conn, Statement stat, ResultSet res) {
+           if (res != null) {
+               try {
+                   res.close();
+               } catch (SQLException e) {
+                   e.printStackTrace();
+               }
+           }
+   
+           if (stat != null) {
+               try {
+                   stat.close();
+               } catch (SQLException e) {
+                   e.printStackTrace();
+               }
+           }
+   
+           if (conn != null) {
+               try {
+                   conn.close();
+                   // remove的原因: 应为Tomcat支持多线程, 内部提供了线程池
+                   // 如果t1被a用户使用结束并且关闭了（回到线程池中）, 那么t1也有可能继续被b用户使用，如果不remove那么b用户取到的线程会有问题。
+                   threadLocal.remove();
+               } catch (SQLException e) {
+                   e.printStackTrace();
+               }
+           }
+       }
+   }
+   ```
+
+   
+
+### 使用三层架构改造项目
+
++ Controller（视图层）
+
+  + AccountServlet
+
+    
+
++ Service（业务逻辑层）
+
+  + AccountService
+    + AccountServiceImpl
+
++ Dao（数据持久层）
+  + AccountDao
+    + AccountDaoImpl
+
++ pojo（实体类）
+
+  + Account
+
+  
+
++ util（工具类）
+
+  + DBUtil
+
+  
+
++ exception（自定义异常）
+
+  + AppException
+
+    
