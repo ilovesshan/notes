@@ -3368,3 +3368,522 @@
 
 4. 剩余的标签...，等需要用到了再[查文档](https://www.runoob.com/jsp/jsp-jstl.html)吧！！！
 
+### Base 标签
+
+1. \<base href=""> 标签用来为页面所有的连接或者地址规定默认目标。
+
+2. \<base href="http://localhost:8080/"> 
+
+3. 在js代码中，最好使用绝对路径！！！
+
+   ```jsp
+   <%--指向 http://localhost:8080/oa/aa/bb --%>
+   <a href="aa/bb">aa/bb</a>
+   
+   <%--指向 http://localhost:8080/aa/bb --%>
+   <a href="/aa/bb">/aa/bb</a>
+   ```
+
+4. 使用EL表达式动态获取 href
+
+   ```jsp
+   <%--获取协议--%>
+   ${pageContext.request.scheme}
+   
+   <%--获取地址--%>
+   ${pageContext.request.serverName }
+   
+   <%--获取端口--%>
+   ${pageContext.request.serverPort }
+   
+   <%--获取根路径--%>
+   ${pageContext.request.contextPath  }
+   ```
+
+   
+
+   ```jsp
+   <base href="${pageContext.request.scheme}://${pageContext.request.serverName}:${pageContext.request.serverPort}${pageContext.request.contextPath}/">
+   ```
+
+
+
+### EL表达式和JSTL标签库改造oa项目
+
+
+
+## Filter 过滤器
+
+### Filter 介绍和使用场景
+
+1. 总结一下oa项目的缺点
+
+   + 项目目前有DeptServlet、这个Servlet访问前提条件是："要登录"！！如果后续开发项目中，有 OrderServlet、GoodsServlet等等等，要访问这些Servlet都有一个前提必要条件："要登录"才能访问！，那么试想一下我们要在每一个Servlet中写这段重复的代码吗？？
+
+     ```java
+     if (session != null && session.getAttribute("username") != null){
+         // 已经登录了，继续处理业务逻辑
+     }else{
+         // 未登录，去登录界面
+     }
+     ```
+
+     
+
+   + 在部分Tomcat中，我们可能需要处理请求和响应时乱码问题，难道每个Servlet文件都要写这些重复代码？？
+
+     ```java
+     // 处理请求乱码
+     req.setCharacterEncoding("utf-8");
+     // 处理响应乱码
+     resp.setContentType("text/html;charset=utf-8");
+     ```
+
+     
+
+2. 总结了oa项目的缺点，这个时候filter就要出场了！！
+
+   + filter 过滤器属于Servlet规范的一员。
+
+   + filter 过滤器，主要起到一个过滤的效果，我们指定某些Servlet被访问之前需要先经过过滤器，我们可以在过滤器中处理一些公共逻辑，例如：用户是否已经登录了，处理请求和响应时乱码问题等等。
+   + 我们也可以定义多个filter ，页可以让filter只过滤某些Servlet的请求。
+
+   ![image-20230309161525260](../../.vuepress/public/image-20230309161525260.png)
+
+### Filter 用法和生命周期
+
+1. Filter的用法
+
+   + 编写一个类实现Filter接口，并实现抽象方法。
+
+     ```java
+     // @WebFilter("*.do")
+     public class FilterA implements Filter {
+         @Override
+         public void init(FilterConfig filterConfig) throws ServletException {
+             System.out.println("FilterA init ....");
+         }
+     
+         @Override
+         public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+     
+             // 请求时执行
+             System.out.println("FilterA request doFilter ....");
+     
+             // 放行
+             filterChain.doFilter(servletRequest, servletResponse);
+     
+             // 响应时执行
+             System.out.println("FilterA response doFilter ....");
+     
+         }
+     
+         @Override
+         public void destroy() {
+             System.out.println("FilterA destroy ....");
+         }
+     }
+     ```
+
+   + 注册Filter
+
+     + 在web.xml中注册Filter
+
+       ```xml
+       <filter>
+           <filter-name>filterA</filter-name>
+           <filter-class>com.ilovesshan.filter.FilterA</filter-class>
+       </filter>
+       <filter-mapping>
+           <filter-name>filterA</filter-name>
+           <url-pattern>/*</url-pattern>
+       </filter-mapping>
+       ```
+
+       
+
+     + 通过@WebFilter()注解
+
+       ```java
+       @WebFilter("*.do")
+       public class FilterA implements Filter {}
+       ```
+
+       
+
+   + 编写Servlet代码进行测试
+
+     ```java
+     @WebServlet(urlPatterns = "/a.do")
+     public class ServletA extends HttpServlet {
+         @Override
+         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+             System.out.println("ServletA  doGet...");
+         }
+     }
+     ```
+
+     ```java
+     @WebServlet(urlPatterns = "/b.do")
+     public class ServletB extends HttpServlet {
+         @Override
+         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+             System.out.println("ServletB  doGet...");
+         }
+     }
+     ```
+
+     
+
+   + 浏览访问
+
+     + Tomcat启动时阶段会执行init方法，销毁时执行destroy方法，客户端请求一次就执行一次doFilter方法。
+
+     + http://localhost:8080/servlet10/a.do
+
+       ```tex
+       FilterA request doFilter ....
+       ServletA  doGet...
+       FilterA response doFilter ....
+       ```
+
+       
+
+     + http://localhost:8080/servlet10/b.do
+
+       ```tex
+       FilterA request doFilter ....
+       ServletB  doGet...
+       FilterA response doFilter ....
+       ```
+
+       
+
+       
+
+2. Filter的生命周期
+
+   + 构造器：Tomcat启动时阶段会执行。
+   + init 方法：构造器调用执行完毕就调用init 方法。
+   + doFilter 方法：客户端请求一次就执行一次doFilter方法，请求N次就会执行N次doFilter方法，注意：请考虑好filterChain.doFilter(servletRequest, servletResponse)代码是否应该执行！！
+   + destroy 方法：Tomcat销毁时执行destroy方法
+
+3. Filter和Servlet的生命周期对比
+
+   + Filter和Servlet的生命周期很类似很类似！
+   + 唯一区别：Tomcat启动阶段，默认会调用Filter的init方法，而不会调用Servlet的init方法（排除配置了\<load-on-startup> 标签）。
+
+### Filter 匹配规则
+
+1. 匹配规则
+   + 精确匹配：/adc、/def
+   + 后缀匹配：*.do，注意不要加 "/"
+   + 前缀 匹配：/dept/*
+2. 多个Filter执行顺序
+   + 在web.xml中配置：\<filter-mapping>位置越靠上优先级越高。
+   + 通过注解配置：比较Filter类名，排序越靠前先级越高。
+
+### 责任链设计模式
+
+1. 看一段代码，并分析这段代码是不是和Filter很相似呢？？
+
+   ```java
+   public class Test {
+       public static void main(String[] args) {
+           System.out.println("main start...");
+           m1();
+           System.out.println("main end...");
+       }
+   
+       private static void m1() {
+           System.out.println("m1 start...");
+           m2();
+           System.out.println("m1 end...");
+       }
+   
+       private static void m2() {
+           System.out.println("m2 start...");
+           m3();
+           System.out.println("m2 end...");
+       }
+   
+       private static void m3() {
+           System.out.println("m3 executed...");
+       }
+   }
+   ```
+
+   ```tex
+   main start...
+   m1 start...
+   m2 start...
+   m3 executed...
+   m2 end...
+   m1 end...
+   main end...
+   ```
+
+   
+
+2. 代码分析：
+
+   + 上面这段代码最大的缺点就是：程序在编译期间就确定了程序的调用顺序，如果想改变程序组合调用顺序，那就只能改源代码，改源代码那就违背了OPC（开闭原则）原则。
+
+   + 责任链设计模式最大的特点就是：程序的组合调用顺序可以在运行过程中改变，可以随时对责任链排序 , 随时增加拆除责任链中的某个请求对象 ;
+
+3. Filter的设计就是模式就是：责任链设计模式!!!
+
+### Filter改造oa项目
+
+1. 登录检查过滤器
+
+   ```java
+   public class LoginCheckFilter implements Filter {
+       @Override
+       public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+   
+           HttpServletRequest request = (HttpServletRequest) servletRequest;
+           HttpServletResponse response = (HttpServletResponse) servletResponse;
+           if (canLogin(request, response)) {
+               // 登录就放行
+               filterChain.doFilter(servletRequest, servletResponse);
+           } else {
+               // 未登录 一般去登陆界面
+               response.sendRedirect(request.getContextPath() + "/login.jsp");
+           }
+       }
+   
+       private boolean canLogin(HttpServletRequest request, HttpServletResponse response) {
+           // 处理具体的业务逻辑
+       }
+   }
+   ```
+
+   ```xml
+   <!-- 配置登录检查过滤器 -->
+   <filter>
+       <filter-name>loginCheckFilter</filter-name>
+       <filter-class>com.ilovesshan.oa.filter.LoginCheckFilter</filter-class>
+   </filter>
+   
+   <filter-mapping>
+       <filter-name>loginCheckFilter</filter-name>
+       <url-pattern>/*</url-pattern>
+   </filter-mapping>
+   ```
+
+   
+
+2. 字符编码过滤器
+
+   ```java
+   public class CharsetFilter implements Filter {
+   
+       private String requestCharsetEncoding = null;
+       private String responseCharsetEncoding = null;
+   
+       @Override
+       public void init(FilterConfig filterConfig) throws ServletException {
+           requestCharsetEncoding = filterConfig.getInitParameter("requestCharsetEncoding");
+           responseCharsetEncoding = filterConfig.getInitParameter("responseCharsetEncoding");
+   
+           System.out.println("requestCharsetEncoding = " + requestCharsetEncoding);
+           System.out.println("responseCharsetEncoding = " + responseCharsetEncoding);
+       }
+   
+       @Override
+       public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+           // 设置请求编码字符集
+           servletRequest.setCharacterEncoding(requestCharsetEncoding);
+           filterChain.doFilter(servletRequest, servletResponse);
+           // 设置响应编码字符集
+           servletResponse.setContentType(responseCharsetEncoding);
+       }
+   }
+   ```
+
+   ```xml
+   <filter>
+       <filter-name>charsetFilter</filter-name>
+       <filter-class>com.ilovesshan.oa.filter.CharsetFilter</filter-class>
+       <!-- 请求编码字符集 -->
+       <init-param>
+           <param-name>requestCharsetEncoding</param-name>
+           <param-value>utf-8</param-value>
+       </init-param>
+       <!-- 响应编码字符集 -->
+       <init-param>
+           <param-name>responseCharsetEncoding</param-name>
+           <param-value>text/html;charset=utf-8</param-value>
+       </init-param>
+   </filter>
+   
+   <filter-mapping>
+       <filter-name>charsetFilter</filter-name>
+       <url-pattern>/*</url-pattern>
+   </filter-mapping>
+   
+   ```
+
+   
+
+## Listenner 监听器
+
+### 监听器介绍
+
+1. 监听器是Servlet规范中的一员，监听器都是以Listenner 结尾的，比如：ServletContextListenner 、ServleRequestListenner ...
+
+### 监听器用途
+
+1. 监听器是Servlet留给web开发程序员使用的。
+2. web开发程序不用管监听器的实例化和调用时机，只需要关注：在恰当的某个时机去做某件事即可。
+3. web开发程序需要使用合适对应的监听器去监听某些时机。
+
+### Servlet中提供了那些监听器
+
+1. jakarta.servlet包下的
+   + ServletContextListenner
+   + ServlettRequestListenner
+   + ServletContextAttributeListenner
+   + ServletRequestAttributeListenner
+2. jakarta.servlet.http包下的
+   + HttpSessionListenner
+   + HttpSessionAttributeListener
+     + 需要使用@WebListener注解，核心功能是监听Session域中数据变化，当Session域中数据发生变化（绑定/替换/解绑）就会调用相关方法。
+   + HttpSessionBindingListener
+     + 不需要使用@WebListener注解
+     + User类实现了HttpSessionBindingListener接口，当Session域中绑定或者解绑的value值是User对象时，会调用User类的valueBound或者valueUnbound方法。
+     + Person类没有实现了HttpSessionBindingListener接口，当Session域中绑定或者解绑的value值是Person对象时，不会调用Person类的valueBound或者valueUnbound方法。
+   + HttpSessionIdListenner
+   + HttpSessionActivationListenner
+
+### 监听器使用
+
+1. 监听器使用步骤，以ServletContextListenner为例
+
+   + 编写MyServletContextListenner类实现ServletContextListenner接口，并重写/实现其中方法
+
+     ```java
+     public class MyServletContextListener implements ServletContextListener {
+         @Override
+         public void contextInitialized(ServletContextEvent sce) {
+             // ServletContext 初始化时调用...
+             System.out.println("contextInitialized....");
+         }
+     
+         @Override
+         public void contextDestroyed(ServletContextEvent sce) {
+             // ServletContext 销毁时调用...
+             System.out.println("contextDestroyed....");
+         }
+     }
+     ```
+
+     
+
+   + web.xml中注册监听器或者使用@WebListenner注解注册监听器
+
+     ```xml
+     <listener>
+         <listener-class>com.ilovesshan.listener.MyServletContextListener</listener-class>
+     </listener>
+     ```
+
+     ```java
+     @WebListener
+     public class MyServletContextListener implements ServletContextListener {
+     }
+     ```
+
+### 监听网站在线和已登录的人数
+
+```jsp
+当前网站在线人数: ${onlineUserCount}
+<br>
+当前网站在线人数（已登录）: ${onlineUserAuthCount}
+```
+
+
+
+1. 在线人数
+
+   ```java
+   @WebListener
+   public class MyHttpSessionListener implements HttpSessionListener {
+       @Override
+       public void sessionCreated(HttpSessionEvent se) {
+           ServletContext application = se.getSession().getServletContext();
+           Object onlineUserCount = application.getAttribute("onlineUserCount");
+           if (onlineUserCount == null) {
+               application.setAttribute("onlineUserCount", 1);
+           } else {
+               Integer count = (Integer) onlineUserCount;
+               application.setAttribute("onlineUserCount", ++count);
+           }
+       }
+   
+       @Override
+       public void sessionDestroyed(HttpSessionEvent se) {
+           ServletContext application = se.getSession().getServletContext();
+           Object onlineUserCount = application.getAttribute("onlineUserCount");
+           Integer count = (Integer) onlineUserCount;
+           application.setAttribute("onlineUserCount", --count);
+       }
+   }
+   ```
+
+   
+
+2. 已登录人数
+
+   ```java
+   public class User implements HttpSessionBindingListener {
+       @Override
+       public void valueBound(HttpSessionBindingEvent event) {
+           ServletContext application = event.getSession().getServletContext();
+           Object onlineUserAuthCount = application.getAttribute("onlineUserAuthCount");
+           if (onlineUserAuthCount == null) {
+               application.setAttribute("onlineUserAuthCount", 1);
+           } else {
+               Integer count = (Integer) onlineUserAuthCount;
+               application.setAttribute("onlineUserAuthCount", ++count);
+           }
+       }
+   
+       @Override
+       public void valueUnbound(HttpSessionBindingEvent event) {
+           ServletContext application = event.getSession().getServletContext();
+           Object onlineUserAuthCount = application.getAttribute("onlineUserAuthCount");
+           Integer count = (Integer) onlineUserAuthCount;
+           application.setAttribute("onlineUserAuthCount", --count);
+       }
+   
+       private String userCode;
+       private String userName;
+   
+       public User() {
+       }
+   
+       public User(String userCode, String userName) {
+           this.userCode = userCode;
+           this.userName = userName;
+       }
+   
+       public String getUserCode() {
+           return userCode;
+       }
+   
+       public void setUserCode(String userCode) {
+           this.userCode = userCode;
+       }
+   
+       public String getUserName() {
+           return userName;
+       }
+   
+       public void setUserName(String userName) {
+           this.userName = userName;
+       }
+   }
+   ```
+
