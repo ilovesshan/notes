@@ -2171,7 +2171,7 @@ public void testCreateClassAndImplementInterfaceAndAllMethods() throws Exception
    
    ```
 
-3. 用一下吧，超级爽！！
+3. 用一下吧（回到WEB项目中使用！！），超级爽！！
 
    ```java
    // 直接new一个自己写实现类 
