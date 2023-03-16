@@ -1,6 +1,6 @@
 # MyBatis
 
-## 第一章：MyBatis概述
+## MyBatis概述
 
 ### 什么是框架
 
@@ -118,7 +118,7 @@
 
 
 
-## 第二章：MyBatis 入门案例
+## MyBatis 入门案例
 
 仅仅入门而已，不懂没关系，后面会一一讲解，先感受一下MyBatis 这个框架的强大！
 
@@ -730,7 +730,7 @@ public class SqlSessionUtil {
 
 
 
-## 第三章：MyBatis的增删改查
+## MyBatis的增删改查
 
 ### 完成insert使用Map传参
 
@@ -1139,7 +1139,7 @@ public class SqlSessionUtil {
 
    
 
-## 第四章：MyBatis配置文件详解
+## MyBatis配置文件详解
 
 ### 多环境配置 environments
 
@@ -1328,14 +1328,14 @@ public class SqlSessionUtil {
 
 
 
-## 第五章：WEB应用中使用MyBatyis
+## WEB应用中使用MyBatis
 
 ### 项目介绍和技术点
 
 1. 掌握使用三层架构实现银行转账案例
-2. 掌握在WEB应用中使用MyBatyis
+2. 掌握在WEB应用中使用MyBatis
 3. 掌握使用ThreadLocal来解决事务问题
-4. 引出MyBatyis接口代理机制
+4. 引出MyBatis接口代理机制
 
 ### 项目搭建
 
@@ -1786,7 +1786,7 @@ public class SqlSessionUtil {
 
    
 
-## 第六章：使用Javassist生成类
+## 使用Javassist生成类
 
 ### Javassist简单介绍
 
@@ -2188,6 +2188,1295 @@ public void testCreateClassAndImplementInterfaceAndAllMethods() throws Exception
    ```java
    // 用mybatis的
    AccountDao accountDao = SqlSessionUtil.getSqlSession().getMapper(AccountDao.class);
+   ```
+
+   
+
+### 面向接口实现CRUD
+
+1. AccontMapper.xml
+
+   ```xml
+   <?xml version="1.0" encoding="UTF-8" ?>
+   <!DOCTYPE mapper
+           PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+           "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+   <mapper namespace="com.ilovesshan.AccountMapper">
+   
+       <insert id="insert">
+           insert into account(username, account) values (#{username}, #{account})
+       </insert>
+   
+       <delete id="deleteById">
+           delete from account where id = #{id}
+       </delete>
+   
+       <select id="selectById" resultType="com.ilovesshan.Account">
+           select id, username, account from account where id = #{id}
+       </select>
+   
+       <select id="selectList" resultType="com.ilovesshan.Account">
+           select id, username, account from account
+       </select>
+   
+       <update id="update">
+           update account set account = #{account} where id = #{id}
+       </update>
+   
+   </mapper>
+   ```
+
+   
+
+2. AccountMapper，AccountMapper和AccountDao表达的含义是一样的，只不过叫法不一样。
+
+   学了mybatis之后我们一般都把dao层叫做mapper层了，自然而然：AccountMapper -> AccountDao!!
+
+   ```java
+   public interface AccountMapper {
+   
+       Account selectById(int id);
+   
+       List<Account> selectList();
+   
+       int deleteById(int id);
+   
+       int insert(Account account);
+   
+       int update(Account account);
+   }
+   ```
+
+   
+
+   
+
+3. 编写测试类
+
+   ```java
+   @RunWith(JUnit4.class)
+   public class AccountMapperTest {
+   
+       private AccountMapper accountMapper = null;
+       private SqlSession sqlSession;
+   
+       @Before
+       public void before() {
+           sqlSession = SqlSessionUtil.getSqlSession();
+           accountMapper = sqlSession.getMapper(AccountMapper.class);
+       }
+   
+       @Test
+       public void testSelectById() {
+           Account account = accountMapper.selectById(1);
+           System.out.println("account = " + account);
+       }
+   
+       @Test
+       public void SelectList() {
+           List<Account> accountList = accountMapper.selectList();
+           SqlSessionUtil.close(sqlSession);
+           accountList.forEach(System.out::println);
+       }
+   
+       @Test
+       public void DeleteById() {
+           int affectsRow = accountMapper.deleteById(5);
+           sqlSession.commit();
+           SqlSessionUtil.close(sqlSession);
+           System.out.println("affectsRow = " + affectsRow);
+       }
+   
+       @Test
+       public void Insert() {
+           int affectsRow = accountMapper.insert(new Account(3, "winnie", 10000000.00));
+           sqlSession.commit();
+           SqlSessionUtil.close(sqlSession);
+           System.out.println("affectsRow = " + affectsRow);
+       }
+   
+       @Test
+       public void Update() {
+           int affectsRow = accountMapper.update(new Account(5, "winnie", 1000.00));
+           sqlSession.commit();
+           SqlSessionUtil.close(sqlSession);
+           System.out.println("affectsRow = " + affectsRow);
+   
+       }
+   
+   }
+   ```
+
+
+
+## MyBatis小技巧
+
+### #{}和${}区别
+
+1. #{}和${}概念上的区别
+
+   + #{}和${}都是mybatis中的占位符
+
+   + #{}：先进行sql预编译，再进行占位符赋值，底层是基于PreapredStatement实现的，能够防止sql注入，使用得比较多！
+   + ${}：直接进行sql语句拼接，再编译sql语句，底层是基于Statement实现的，不能够防止sql注入，使用场景比较少，通常用于sql语句中特殊关键字进行处理。
+
+2. #{}和${}代码上的区别
+
+   + 代码准备
+
+     ```java
+     public interface CarMapper {
+         List<Car> select(String type);
+     }
+     ```
+
+     ```xml
+     <mapper namespace="com.ilovesshan.mapper.CarMapper">
+         <select id="select" resultType="com.ilovesshan.pojo.Car">
+             select
+                 car_num, brand, guide_price, produce_time, car_type
+             from
+                 t_car
+             where
+                 car_type like #{ carType }
+         </select>
+     </mapper>
+     ```
+
+     
+
+   + 使用#{}
+
+     ==> Preparing: select car_num, brand, guide_price, produce_time, car_type from t_car where car_type like ?
+     ==> Parameters: 燃油车(String)
+
+     
+
+   + 使用${}，直接报错了
+
+     ==> Preparing: select car_num, brand, guide_price, produce_time, car_type from t_car where car_type like 燃油车
+     ==> Parameters: 
+
+     SQL: select  car_num, brand, guide_price, produce_time, car_type from t_car  where   car_type like 燃油车
+
+     Cause: java.sql.SQLSyntaxErrorException: Unknown column '燃油车' in 'where clause'
+
+3.  根据字段名称和字段值并排序 实现动态查询
+
+   @Param("") 注解后面会说，这里为了取值方便先用一下！！
+
+   ```java
+   public interface CarMapper {
+       /**
+        * 根据字段名称和字段值并排序 实现动态查询
+        *
+        * @param columnKey   查询列名
+        * @param columnValue 查询条件
+        * @param descOrAsc   排序规则
+        * @return ist<Car>
+        */
+       List<Car> selectByCondition(@Param("columnKey") String columnKey, @Param("columnValue") String columnValue, @Param("descOrAsc") String descOrAsc);
+   }
+   ```
+
+   需要分清楚xml中什么时候用${}什么时候用#{}
+
+   ```xml
+       <select id="selectByCondition" resultType="com.ilovesshan.pojo.Car">
+           select
+               car_num, brand, guide_price, produce_time, car_type
+           from
+               t_car
+           where
+               ${columnKey} like #{columnValue}
+           order by
+               produce_time ${descOrAsc}
+       </select>
+   ```
+
+   
+
+4. 根据日期查询对应日志表信息
+
+   + 准备数据表
+
+     ```sql
+     create table t_log_20230314(
+         id bigint primary key auto_increment,
+         `code` varchar(50) comment '状态码',
+         `message` varchar(255) comment '日志消息'
+     );
+     
+     
+     create table t_log_20230315(
+         id bigint primary key auto_increment,
+         `code` varchar(50) comment '状态码',
+         `message` varchar(255) comment '日志消息'
+     );
+     
+     
+     insert into 
+     	t_log_20230314(code, message) 
+     values 
+     	('200', 't_log_20230314日志信息'),
+     	('200', 't_log_20230314日志信息'),
+     	('200', 't_log_20230314日志信息');
+     
+     
+     insert into 
+     	t_log_20230315(code, message) 
+     values 
+     	('200', 't_log_20230315日志信息'),
+     	('200', 't_log_20230315日志信息'),
+     	('200', 't_log_20230315日志信息');
+     ```
+
+     
+
+   + 编写代码
+
+     ```java
+     public interface LogMapper {
+         List<Log> selectByTableName(String tableName);
+     }
+     ```
+
+     ```xml
+     <select id="selectByTableName" resultType="com.ilovesshan.pojo.Log">
+         select
+         	id, code, message
+         from
+        	 t_log_${date}
+     </select>
+     
+     ```
+
+     
+
+     这是只能用${date}：
+
+     ​	Setting autocommit to false on JDBC Connection [com.mysql.cj.jdbc.ConnectionImpl@1afdd473]
+     ​	==>  Preparing: select id, code, message from t_log_20230314
+
+     
+
+     假如使用#{date}：编译都不通过！！
+
+     ​	==> Preparing: select id, code, message from t_log_‘20230314’
+
+     
+
+### 模糊查询
+
+1. 常用
+   + select * from t_car where car_type like "%"#{kw}"%"
+   + select * from t_car where car_type like concat("%",#{kw},"%")
+2. 扩展
+   + select * from t_car where car_type like "%"'${kw}'"%"
+   + select * from t_car where car_type like concat("%",'${kw}',"%")
+
+### 别名机制
+
+1. 类型别名可为 Java 类型设置一个缩写名字。 它仅用于 XML 配置，意在降低冗余的全限定类名书写，比如每个SqlMapper.xml文件中的查询语句，resultType值都是实体类的全限定名称，比如：
+
+   ```xml
+   resultType="com.ilovesshan.pojo.Car"
+   resultType="com.ilovesshan.pojo.Log"
+   ```
+
+   
+
+2. 这样写太繁琐了，有没有更简洁的写法呢？有，在mybatis配置文件中在配置\<typeAliases> 别名标签
+
+   ```xml
+   <typeAliases>
+       <typeAlias alias="log" type="com.ilovesshan.pojo.Log"/>
+       <typeAlias alias="car" type="com.ilovesshan.pojo.Car"/>
+   </typeAliases>
+   ```
+
+   
+
+   + 注意：alias属性可以省略， 省略之后默认值是：实体类的类名(不区分大小写)，例如：
+
+     + com.ilovesshan.pojo.Log ---> log/LOG/LoG
+
+     + com.ilovesshan.pojo.Car ---> car/CAR/CaR
+
+     + 若有注解，则别名为其注解值。
+
+       ```java
+       @Alias("user")
+       public class User {
+           // ...
+       }
+       ```
+
+   + 在SqlMapper.xml文件中，关于resultType的值那就可以简写了，
+
+     ```xml
+     resultType="car"
+     resultType="log"
+     ```
+
+3. 在\<typeAliases>标签中写\<typeAlias>其实也很繁琐，100个实体类写100个？？，当然不可能，mybatis又提供了package包查找的机制，可以指定一个包名，mybatis会在包名下面搜索需要的 Java Bean。
+
+   ```xml
+   <package name="com.ilovesshan.pojo"/>
+   ```
+
+   + 这下是不是很爽？？
+
+
+
+### mapper标签
+
+1. url属性（不推荐）
+
+   + 使用完全限定资源定位符（URL），通过绝对路径查找！
+
+     ```xml
+     <mappers>
+         <mapper url="file:///d:/mappers/CarMapper.xml"/>
+     </mappers>
+     ```
+
+     
+
+2. resouorces属性
+
+   + 使用相对于类路径的资源引用！
+
+     ```xml
+     <mappers>
+         <mapper resource="CarMapper.xml"/>
+         <mapper resource="LogMapper.xml"/>
+     </mappers>
+     ```
+
+     
+
+3. class属性
+
+   + 使用映射器接口实现类的完全限定类名！
+
+     ```xml
+     <mappers>
+         <mapper class="com.ilovesshan.mapper.CarMapper"/>
+         <mapper class="com.ilovesshan.mapper.LogMapper"/>
+     </mappers>
+     ```
+
+   + 注意，使用这种方式需要保证：
+
+     + 映射文件和接口需要在同一个目录
+
+     + 映射文件和接口文件名称必须一样
+
+       
+
+4. package标签
+
+   +  将包内的映射器接口全部注册为映射器
+
+     ```xml
+     <mappers>
+         <package name="com.ilovesshan.mapper"/>
+     </mappers>
+     ```
+
+   + 注意，使用这种方式需要保证：
+
+     + 映射文件和接口需要在同一个目录
+     + 映射文件和接口文件名称必须一样
+
+5. 提示：
+
+   + 在maven项目中，java目录和resources目录，两个文件夹中被打包的资源都会放到类的根路径下！！
+
+   + resources目录下，没有建包的概念，只有文件夹。
+
+     + 新建文件夹：com/ilovesshan/mapper 就OK了，中间不要使用"." 来分割！
+
+   + java目录下的com.ilovesshan.mapper和resources目录下com/ilovesshan/mapper打包之后，会放在同一目录下！！
+
+     
+
+### 返回自增ID
+
+1. 返回自增ID需求
+
+   + 多表关联新增数据时，B表需要依赖A表新增数据的ID，这时候我们使用mybatis提供的返回自增ID来实现这一需求，当然你也可以分两步查询（不太推荐，因为mybatis已经提供了更方便方式）
+
+   + 插入数据时返回的ID值放在实体类中（新增数据传递的实体类），举个例子：
+
+     ```java
+     public interface LogMapper {
+         int insert(@Param("date") String date, @Param("log") Log log);
+     }
+     ```
+
+     ```java
+     @Test
+     public void testInsert() {
+         Log log = new Log(null, "500", "server error!!!");
+         // 此时 log.id 是null
+         mapper.insert("20230314", log);
+         // 此时 log.id 数据库自动生成的ID
+     
+         sqlSession.commit();
+         sqlSession.close();
+     }
+     ```
+
+     + useGeneratedKeys="true" 使用自动生成ID
+
+     + keyProperty 将生成的ID放到实体类的那个属性上
+
+     + keyColumn 对应表的列名（主键名称）
+
+       
+
+     ```xml
+     <insert id="insert" useGeneratedKeys="true" keyColumn="id" keyProperty="log.id">
+         insert into t_log_${date}(code, message) values(#{log.code},#{log.message})
+     </insert>
+     ```
+
+
+
+## MyBatis参数处理
+
+### 单个简单类型参数
+
+1. 常用的简单类型
+
+   + char、byte、short、int、float、double、long
+   + Charactor、Byte、Short、Integer、Float、Double、Long
+   + Date
+   + String
+
+2. 关于paramterType属性
+
+   + paramterType：表示参数的数据类型，通常我们都省略了没有写！！
+   + 底层实现过程简述：
+     +  【JDBC代码】select * from log where code = ？
+     + 【JDBC代码】conn.setXxx(index, data)，
+     + 执行上面这句话之前mybatis是需要知道“?” 到底是什么数据类型的，那不然是执行conn.setString() 还是 conn.setInt()呢？
+   + mybatis数据类型推断功能
+     + mybatis功能很强大、能够帮助我们进行了数据类型推断
+     + 通过反射获取接口中方法参数的类型，然后就可以确定参数类型了。
+   + mybatis也提供了很多内置的参数类型，可以参考：[类型别名（typeAliases）](https://mybatis.org/mybatis-3/zh/configuration.html#typeAliases)
+
+   ```xml
+   <insert id="insert" parameterType="log">
+       insert into log(code, message) values(#{code}, #{message})
+   </insert>
+   
+   <insert id="selectByCode" parameterType="int">
+       select * from log where code = #{code}
+   </insert>
+   
+   <insert id="selectByMessage" parameterType="int">
+       select * from log where message like "%"#{code}"%"
+   </insert>
+   ```
+
+3. 关于#{}隐藏知识
+
+   + 开发中很少这样写，如果写了那么mybatis就不用再进行数据类型推断了。
+
+     + javaType：Java参数的数据类型
+     + jdbcType：数据库字段数据类型
+
+     ```xml
+     <insert id="selectByMessage" parameterType="int">
+         select * from log where message like "%"#{message, javaType=String, jdbcType=VARCHAR}"%"
+     </insert>
+     ```
+
+   + Mybatis中jdbcType和javaType的对应关系
+
+     ```te
+     1 JDBC Type           Java Type  
+     
+     2 CHAR                String  
+     3 VARCHAR             String  
+     4 LONGVARCHAR         String  
+     5 NUMERIC             java.math.BigDecimal  
+     6 DECIMAL             java.math.BigDecimal  
+     7 BIT                 boolean  
+     8 BOOLEAN             boolean  
+     9 TINYINT             byte  
+     10 SMALLINT            short  
+     11 INTEGER             int  
+     12 BIGINT              long  
+     13 REAL                float  
+     14 FLOAT               double  
+     15 DOUBLE              double  
+     16 BINARY              byte[]  
+     17 VARBINARY           byte[]  
+     18 LONGVARBINARY               byte[]  
+     19 DATE                java.sql.Date  
+     20 TIME                java.sql.Time  
+     21 TIMESTAMP           java.sql.Timestamp  
+     22 CLOB                Clob  
+     23 BLOB                Blob  
+     24 ARRAY               Array  
+     25 DISTINCT            mapping of underlying type  
+     26 STRUCT              Struct  
+     27 REF                         Ref  
+     28 DATALINK            java.net.URL[color=red][/color]  
+     ```
+
+     
+
+### Map类型参数
+
+1. 参考[mybatis的增删改查](https://ilovesshan.github.io/pages/backend/myBatis.html#mybatis%E7%9A%84%E5%A2%9E%E5%88%A0%E6%94%B9%E6%9F%A5)
+
+### Pojo类型参数
+
+1. 参考[mybatis的增删改查](https://ilovesshan.github.io/pages/backend/myBatis.html#mybatis%E7%9A%84%E5%A2%9E%E5%88%A0%E6%94%B9%E6%9F%A5)
+
+### 批量删除
+
+```java
+int deleteBatch(String ids);
+```
+
+```java
+@Test
+public void testDeleteBatch() {
+    int count = mapper.deleteBatch("11,12,13");
+
+    sqlSession.commit();
+    sqlSession.close();
+}
+```
+
+```xml
+<insert id="deleteBatch">
+    delete from  t_log_20230314 where id in (${ids})
+</insert>
+```
+
+
+
+### 多个简单类型参数
+
+1. 需求根据code和message查询日志信息
+
+   ```java
+   	/**
+        * mybatis解析到这个方法的时候，底层会用一个Map将参数存起来
+        *      key         value
+        *
+        *      arg0        code
+        *      arg1        message
+        *      ....
+        *
+        *      param1      code
+        *      param1      message
+        *      ....
+        */
+   List<Log> selectByCondition(String code, String message);
+   ```
+
+   
+
+   + 【会报错】直接写形参名称
+
+     ```xml
+     <insert id="selectByCondition">
+         select * from log where code = #{code} and message like "%"#{message}"%"
+     </insert>
+     ```
+
+     
+
+   + 【OK】使用 arg0 和 arg1（需要注意参数位置）
+
+     ```xml
+     <insert id="selectByCondition">
+         select * from log where code = #{arg0 } and message like "%"#{arg1}"%"
+     </insert>
+     ```
+
+     
+
+   + 【OK】使用 param1 和 param1（需要注意参数位置）
+
+     ```xml
+     <insert id="selectByCondition">
+         select * from log where code = #{param1} and message like "%"#{param1}"%"
+     </insert>
+     ```
+
+   2. 使用argxx或者paramxxx感觉有点麻烦，我还要注意参数位置，不优雅！，我们可以使用@Param注解来实现
+
+      ```java
+      @Documented
+      @Retention(RetentionPolicy.RUNTIME)
+      @Target(ElementType.PARAMETER)
+      public @interface Param {
+          String value();
+      }
+      ```
+
+      
+
+      + 用法也很简单，接口的方法中声明
+
+        ```java
+        int insert(@Param("code") String code, @Param("msg") String message);
+        ```
+
+      + 【OK】xml中直接使用别名，#{}中填写对应@Param注解的value值
+
+        ```xml
+        <insert id="selectByCondition">
+            select * from log where code = #{code} and message like "%"#{msg}"%"
+        </insert>
+        ```
+
+      + 【OK】使用 param1 和 param1
+
+      + 【会报错】使用 arg0 和 arg1，使用了@Param注解，argxx就失效了！！
+
+        
+
+### 多个复杂类型参数
+
+1. 项目中由于访问量很大，所以数据库中每天会生成一张日志表，现在需求是：滚动日志插入，将当天的日志存到当天的表中。
+
+   + 表命名格式：t_log_20230315、t_log_20230316、t_log_2023031....
+   + 日志实体类字段：id、code、message
+
+2. 编码实现
+
+   ```java
+   	/**
+        * 滚动日志插入
+        *
+        * @param date 当天日期 20230215
+        * @param log 日志对象
+        */
+   int insert(@Param("date") String date, @Param("log") Log log);
+   ```
+
+   需要注意：
+
+   + ${} 和 #{} 使用场景
+
+   + 取code和message时、需要通过log.code 和 log.message取，因为在接口方法中给定了别名！！
+
+     ```xml
+     <insert id="insert" useGeneratedKeys="true" keyColumn="id" keyProperty="log.id">
+         insert into t_log_${date}(code, message) values(#{log.code},#{log.message})
+     </insert>
+     ```
+
+     
+
+### @Param源码解析
+
+```java
+public interface class{
+    int insert(@Param("code") String code, @Param("message") String message);
+}
+```
+
+```java
+int affectRows = mapper.insert("200", "操作成功");
+```
+
+
+
+```java
+// 处理@Param 核心类
+public class ParamNameResolver {
+
+    public static final String GENERIC_NAME_PREFIX = "param";
+
+    /**
+     * 赋值完之后的names
+     *
+     * 		key      value
+     * 
+     * 		0        code
+     * 		1        操作成功
+     */
+    private final SortedMap<Integer, String> names;
+
+    
+    
+    /**
+     * args 是外面动态传递过来的数据 {"200", "操作成功"}
+     */
+    public Object getNamedParams(Object[] args) {
+        final int paramCount = names.size();
+        if (args == null || paramCount == 0) {
+            // 无参数
+            return null;
+        } else if (!hasParamAnnotation && paramCount == 1) {
+            // 没有使用@Param注解并且只有一个参数
+            Object value = args[names.firstKey()];
+            return wrapToMapIfCollection(value, useActualParamName ? names.get(0) : null);
+        } else {
+            final Map<String, Object> param = new ParamMap<>();
+            int i = 0;
+            for (Map.Entry<Integer, String> entry : names.entrySet()) {
+                // entry.getValue() -> 0 / 1`	
+                // args[entry.getKey() -> 500 / 操作成功
+                param.put(entry.getValue(), args[entry.getKey()]);
+                // add generic param names (param1, param2, ...)
+                final String genericParamName = GENERIC_NAME_PREFIX + (i + 1);
+                // ensure not to overwrite parameter named with @Param
+                if (!names.containsValue(genericParamName)) {
+                    param.put(genericParamName, args[entry.getKey()]);
+                }
+                i++;
+            }
+            return param;
+        }
+    }
+}
+```
+
+![image-20230315171315923](../../.vuepress/public/image-20230315171315923.png)
+
+
+
+## MyBatis 查询结果
+
+### 返回Pojo和Pojo列表
+
+1. 【OK】查询一条数据，返回Pojo
+2. 【OK】查询一条数据，返回List\<Pojo>
+3. 【OK】查询多条数据，返回List\<Pojo>
+4. 【ERROR】查询多条数据，返回Pojo
+   +  Expected one result (or null) to be returned by selectOne(), but found: xxx(真实返回的数据条数)
+
+### 返回Map和Map列表
+
+1. 查询数据时，如果Java代码中没有合适的Pojo对象时，可以选择返回一个Map对象。
+
+   + 结果是 \<String,Object> 这种数据格式。
+
+   ![image-20230315174034583](../../.vuepress/public/image-20230315174034583.png)
+
+2. 返回Map列表也就是同一个道理！！
+
+   + 结果是 List<Map<String,Object>> 这种数据格式。
+
+###  返回大Map对象
+
+1. 使用场景：
+
+   + 快速找到集合中的数据，可以通过ID作为Map的可以，value保存数据！
+
+     ![image-20230315184102351](../../.vuepress/public/image-20230315184102351.png)
+
+```java
+@MapKey("id")
+Map<String, Object> selectRtruenMap();
+```
+
+```xml
+<select id="selectRtruenMap" resultType="map">
+    select * from  t_log_20230314
+</select>
+```
+
+
+
+### 返回查询记录条数
+
+```java
+int selectCount();
+```
+
+```xml
+<select id="selectCount" resultType="java.lang.Integer">
+    select count(1) from  t_log_20230314
+</select>
+```
+
+
+
+### 结果集映射
+
+1. 数据库字段名称和实体类名称不一样时、映射出来的字段值是 null，有三种办法解决
+
+   ```xml
+   <select id="select" resultType="car">
+       select
+       	car_num, brand, guide_price, produce_time, car_type
+       from
+       	t_car
+       where
+       	car_type like #{ carType }
+   </select>
+   ```
+
+   ```tex
+   Car(id=null, carNum=null, brand=奔驰, guidePrice=null, produceTime=null, carType=null)
+   Car(id=null, carNum=null, brand=丰田凯美瑞, guidePrice=null, produceTime=null, carType=null)
+   Car(id=null, carNum=null, brand=本田雅阁, guidePrice=null, produceTime=null, carType=null)
+   ```
+
+   + 给查询字段取别名
+
+     ```xml
+     <select id="select" resultType="car">
+         select
+         	car_num carNum, brand, guide_price guidePrice, produce_time produceTime, car_type carType
+         from
+         	t_car
+         where
+         	car_type like #{ carType }
+     </select>
+     ```
+
+     
+
+   + 通过resultMap处理
+
+     ```xml
+     <!-- id:  resultMap的ID, 需要在 select标签使用， 作为resultMap的值-->
+     <!-- type:  java实体类的名称(开启了别名注册，就可以享受这一机制)-->
+     <resultMap id="carResultMap" type="car">
+         <!-- mybatis推荐给每一个resultMap加上一个id，这样会提高执行效率 -->
+         <!-- property: java实体类的字段名称 -->
+         <!-- column: 数据表的字段名称 -->
+         <id property="id" column="id"/>
+         <result property="carNum" column="car_num"/>
+         <!-- java实体类字段名称和数据表的字段名称一样时，可以省略不写-->
+         <result property="brand" column="brand"/>
+         <result property="guidePrice" column="guide_price"/>
+         <result property="produceTime" column="produce_time"/>
+         <result property="carType" column="car_type"/>
+     </resultMap>
+     
+     
+     <!-- 使用结果集映射时，不要写resultType属性了， 请使用resultMap属性，值是对应resultMap标签的ID -->
+     <select id="select" resultMap="carResultMap">
+         select
+         	car_num, brand, guide_price, produce_time, car_type
+         <!-- car_num carNum, brand, guide_price guidePrice, produce_time produceTime, car_type carType  -->
+         from
+         	t_car
+         where
+         	car_type like #{ carType }
+     </select>
+     ```
+
+     
+
+   + 开启驼峰命名自动映射
+
+     ```xml
+     <settings>
+         <!-- 是否开启驼峰命名自动映射，即从经典数据库列名 A_COLUMN 映射到经典 Java 属性名 aColumn。-->
+         <setting name="mapUnderscoreToCamelCase" value="true"/>
+     </settings>
+     ```
+
+     开启驼峰命名自动映射需要遵循的规则：
+
+     1. Java实体类命名规则：遵顼大驼峰命名方式！
+     2. 数据表命名规则：多个单词之间通过下划线分割！
+     3. 遵循1、2规则基础上，保证命名相同，例如：
+        + carNum --> car_num
+        + produceTime --> produce_time
+
+     如果字段不遵循命名规范，那么开启驼峰命名自动映射会失效！！
+
+## MyBatis动态SQL
+
+​		如果你使用过 JDBC 或其它类似的框架，你应该能理解根据不同条件拼接 SQL 语句有多痛苦，例如拼接时要确保不能忘记添加必要的空格，还要注意去掉列表最后一个列名的逗号。利用动态 SQL，可以彻底摆脱这种痛苦。
+
+
+
+### if 标签
+
+if 标签常用于根据条件包含where子句的一部分。看几个案例吧！
+
+```java
+public interface CarMapper {
+
+   List<Car> selectWithIf(@Param("brand") String brand, @Param("guidePrice") Long guidePrice, @Param("carType") String carType);
+}
+```
+
+```xml
+<select id="selectWithIf" resultType="com.ilovesshan.pojo.Car">
+        select
+               *
+        from
+             t_car
+        <!-- 这里需要添加一个 1=1 保证sql语句完整性(如果if全部不成立就会多一个"where"字符串)-->
+        where 1=1
+          <!-- if标签中的test属性是必填的，接收一个boolean值 -->
+          <!-- test的标签中不能出现 &&, 如有需要请使用 and 代替 -->
+        <if test="brand!=null and brand != ''">
+            and brand like "%"#{brand}"%"
+        </if>
+        <!-- 如果使用<(小于) 请使用转义字符代替-->
+        <if test="guidePrice!=null and guidePrice != ''">
+            and guide_price &lt; #{guidePrice}
+        </if>
+        <if test="carType!=null and carType != ''">
+            and car_type like #{carType}
+        </if>
+    </select>
+```
+
+
+
++ 查询条件：全部为空
+
+  ```java
+  List<Car> cars = carMapper.selectWithIf("", null, "");
+  
+  // ==>  Preparing: select * from t_car where 1=1
+  // ==> Parameters:
+  ```
+
+  
+
++ 查询条件：全部不为空
+
+  ```java
+  List<Car> cars = carMapper.selectWithIf("田", 290000L, "燃油车");
+  
+  // ==>  Preparing: select * from t_car where 1=1 and brand like "%"?"%" and guide_price < ? and car_type like ?
+  // ==> Parameters: 田(String), 290000(Long), 燃油车(String)
+  ```
+
+  
+
++ 查询条件： 部分为空
+
+  ```java
+  List<Car> cars = carMapper.selectWithIf("田", null, "燃油车");
+  
+  // ==>  Preparing: select * from t_car where 1=1 and brand like "%"?"%" and car_type like ?
+  // ==> Parameters: 田(String), 燃油车(String)
+  ```
+
+  
+
+### when 标签
+
+​		where元素只会在子元素返回任何内容的情况下才插入 “WHERE” 子句。而且，若子句的开头为 “AND” 或 “OR”，*where* 元素也会将它们去除。
+
+使用where标签将上面的sql语句更新一下，可以干掉"1=1"了，注意点：
+
+```xml
+<select id="selectWithIf" resultType="com.ilovesshan.pojo.Car">
+    select
+    	*
+    from
+    	t_car
+    <where>
+        <if test="brand!=null and brand != ''">
+            and brand like "%"#{brand}"%"
+        </if>
+        <if test="guidePrice!=null and guidePrice != ''">
+            and guide_price &lt; #{guidePrice}
+        </if>
+        <if test="carType!=null and carType != ''">
+            and car_type like #{carType}
+        </if>
+    </where>
+
+</select>
+```
+
+
+
++ when 标签只能去掉子句的**开头**为 “AND” 或 “OR”的关键字，如果在结尾也不行或者其他关键字无效！！
+
+  ```java
+  carMapper.selectWithIf("田", null, "");
+  ```
+
+  ```xml
+  <where>
+      <if test="brand!=null and brand != ''">
+          brand like "%"#{brand}"%" and
+      </if>
+      <if test="guidePrice!=null and guidePrice != ''">
+          guide_price &lt; #{guidePrice} and
+      </if>
+      <if test="carType!=null and carType != ''">
+          car_type like #{carType}
+      </if>
+  </where>
+  ```
+
+  ```sql
+  # 结果就报错了， 这种sql压根没法执行！！
+  SQL: select * from t_car WHERE brand like "%"?"%" and
+  ```
+
+  
+
+### trim 标签
+
+如果 where 元素与你期望的不太一样，你也可以通过自定义 trim 元素来定制 where元素的功能。
+
+比如，和 where元素等价的自定义 trim 元素为：
+
++  prefix 前缀
++  suffix 后缀
++ prefixOverrides 删除多余的前缀
++ suffixOverrides 删除多余的后缀
+
+```xml
+<trim prefix="where" prefixOverrides="and | or">
+    <if test="brand!=null and brand != ''">
+        and  brand like "%"#{brand}"%"
+    </if>
+    <if test="guidePrice!=null and guidePrice != ''">
+        and   guide_price &lt; #{guidePrice}
+    </if>
+    <if test="carType!=null and carType != ''">
+        and  car_type like #{carType}
+    </if>
+</trim>
+```
+
+```xml
+<!-- 和上面等价 -->
+<trim prefix="where"  suffixOverrides="and | or">
+    <if test="brand!=null and brand != ''">
+        brand like "%"#{brand}"%" and
+    </if>
+    <if test="guidePrice!=null and guidePrice != ''">
+        guide_price &lt; #{guidePrice} and
+    </if>
+    <if test="carType!=null and carType != ''">
+        car_type like #{carType}
+    </if>
+</trim>
+```
+
+
+
+### set 标签
+
+有时候防止垃圾数据（null或者""，具体也看业务需求）更新到数据库中，此时可以这样做，注意：关于ID字段请在业务代码中处理空值！！
+
+```java
+public interface CarMapper {
+    int  updateWithSet(@Param("car") Car car);
+}
+
+```
+
+```java
+@Test
+public void testUpdateWithSet() {
+    Car car = new Car(6L, "999999", "本田凌度", 190000D, "2022-05-23", "燃油车");
+    // Car car = new Car(6L, "999999", "", null, "", "");
+    int affectRows = carMapper.updateWithSet(car);
+    System.out.println("affectRows = " + affectRows);
+
+    sqlSession.commit();
+    sqlSession.close();
+}
+```
+
+```xml
+<update id="updateWithSet">
+    update
+    	t_car
+    <set>
+        <if test="car.carNum !=null and car.carNum != ''">
+            car_num = #{car.carNum},
+        </if>
+        <if test="car.brand !=null and car.brand != ''">
+            brand = #{car.brand},
+        </if>
+        <if test="car.guidePrice !=null and car.guidePrice != ''">
+            guide_price = #{car.guidePrice},
+        </if>
+        <if test="car.produceTime !=null and car.produceTime != ''">
+            produce_time = #{car.produceTime},
+        </if>
+        <if test="car.carType !=null and car.carType != ''">
+            car_type = #{car.carType}
+        </if>
+    </set>
+    where id=#{car.id}
+</update>
+```
+
+
+
+### choose 标签
+
+​		有时候，我们不想使用所有的条件，而只是想从多个条件中选择一个使用。针对这种情况，MyBatis 提供了 choose 元素，它有点像 Java 中的 switch 语句。
+
+```xml
+<select id="selectWithChoose" resultType="com.ilovesshan.pojo.Car">
+    select
+    	*
+    from
+    	t_car
+    <where>
+        <choose>
+            <when test="brand!=null and brand != ''">
+                brand like "%"#{brand}"%"
+            </when>
+
+            <when test="carType!=null and carType != ''">
+                car_type like #{carType}
+            </when>
+
+            <otherwise>
+                guide_price &lt; #{guidePrice}
+            </otherwise>
+        </choose>
+    </where>
+</select>
+```
+
+
+
+### foreach 标签
+
+1. 【批量更新】将ID=1或者3或者5 的车辆类型改成“混动车”
+
+   ```java
+   int updateBatch(@Param("ids") Long[] ids, @Param("carType")String carType);
+   ```
+
+   ```xml
+   <update id="updateBatch">
+       update
+       	t_car
+       set
+       	car_type = #{carType}
+       where
+           id in
+           <foreach collection="ids" item="id" separator=","  open="(" close=")">
+               #{id}
+           </foreach>
+   </update>
+   ```
+
+   ```java
+   @Test
+   public void testUpdateBatch() {
+       int affectRows = carMapper.updateBatch(new Long[]{1L, 3L, 5L}, "油电混动车");
+       System.out.println("affectRows = " + affectRows);
+       sqlSession.commit();
+       sqlSession.close();
+   }
+   // Preparing: update t_car set car_type = ? where id in ( ? , ? , ? )
+   ```
+
+   
+
+   
+
+2. 【批量新增】
+
+   ```java
+   int insertBatch(@Param("carList") List<Car> carList);
+   ```
+
+   ```xml
+   <insert id="insertBatch">
+       insert into
+           t_car
+       values
+           <foreach item="car" collection="carList" separator="," >
+               (null ,#{car.carNum}, #{car.brand} ,#{car.guidePrice}, #{car.produceTime} ,#{car.carType})
+           </foreach>
+   </insert>
+   
+   ```
+
+   ```java
+   @Test
+   public void testInsertBatch() {
+       ArrayList<Car> cars = new ArrayList<>() {{
+           add(new Car(null, "666666", "雪佛兰", 160000D, "2019-05-12", "氢气车"));
+           add(new Car(null, "777777", "现代伊兰特", 140000D, "2022-10-12", "油车"));
+           add(new Car(null, "999999", "大众cc", 220000D, "201-05-19", "油车"));
+       }};
+       int affectRows = carMapper.insertBatch(cars);
+       System.out.println("affectRows = " + affectRows);
+       sqlSession.commit();
+       sqlSession.close();
+   }
+   
+   // Preparing: insert into t_car values (null ,?, ? ,?, ? ,?) , (null ,?, ? ,?, ? ,?) , (null ,?, ? ,?, ? ,?)
+   ```
+
+   
+
+3. 【批量删除】删除ID=1或者3或者5 的车辆类
+
+   ```java
+   int deleteBatch(@Param("ids") Long[] ids);
+   ```
+
+   ```xml
+   <delete id="deleteBatch">
+       delete from
+       	t_car
+       where
+       	id in
+           <foreach collection="ids" item="id" separator=","  open="(" close=")">
+               #{id}
+           </foreach>
+   </delete>
+   ```
+
+   ```java
+   @Test
+   public void testDeleteBatch() {
+       int affectRows = carMapper.deleteBatch(new Long[]{3L, 5L});
+       System.out.println("affectRows = " + affectRows);
+       sqlSession.commit();
+       sqlSession.close();
+   }
+   
+   // Preparing: delete from t_car where id in ( ? , ? )
+   ```
+
+   
+
+### include 和 sql 标签
+
+1. sql 标签用于定义通用的sql代码片段、例如：查询的属性名称
+
+   ```xml
+   <sql id="allColumns">
+       id, car_num, brand, guide_price, produce_time, car_type
+   </sql>
+   ```
+
+   
+
+2. include 标签用于应用sql 标签定义的代码片段
+
+   ```xml
+   <select id="t1" resultType="car">
+       select <include refid="allColumns"/> from t_car
+   </select>
+   ```
+
+   ```xml
+   <select id="t2" resultType="car">
+       select <include refid="allColumns"/> from t_car where id = #{id}
+   </select>
    ```
 
    
