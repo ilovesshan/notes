@@ -4595,3 +4595,658 @@ Car selectById(Long id);
 
 
 ## 手写  MyBatis
+
+### SqlSessionFactoryBuilder
+
+```java
+public class SqlSessionFactoryBuilder {
+    public SqlSessionFactoryBuilder() {
+    }
+
+    public SqlSessionFactory build(InputStream inputStream) {
+        SqlSessionFactory sqlSessionFactory = null;
+        try {
+            // 解析XML文件， 将xml中的获取的信息包装成Transaction和MappedStatement对象 传递给SqlSessionFactory
+            SAXReader saxReader = new SAXReader();
+            Document document = saxReader.read(inputStream);
+            Element configurationElement = document.getRootElement();
+
+            Element environmentsElements = (Element) configurationElement.selectSingleNode("/configuration/environments");
+            String defaultId = environmentsElements.attributeValue("default");
+
+            Element environmentElement = (Element) configurationElement.selectSingleNode("/configuration/environments/environment[@id='" + defaultId + "']");
+
+            Element mappersElement = (Element) configurationElement.selectSingleNode("//mappers");
+
+            // 解析 TransactionManager
+            Transaction transactionManager = parseTransactionManager(environmentElement);
+
+            Map<String, MappedStatement> mappedStatement = parseMappedStatement(mappersElement);
+
+            // 创建 sqlSessionFactory对象
+            sqlSessionFactory = new SqlSessionFactory(transactionManager, mappedStatement);
+        } catch (DocumentException e) {
+            e.printStackTrace();
+        }
+        return sqlSessionFactory;
+    }
+
+    private Map<String, MappedStatement> parseMappedStatement(Element mappersElement) {
+        Map<String, MappedStatement> mappedStatements = new HashMap<>();
+        List<String> mapperPaths = new ArrayList<>();
+
+        List<Element> mapperElements = mappersElement.elements();
+        mapperElements.forEach(mapper -> mapperPaths.add(mapper.attributeValue("resource")));
+
+        mapperPaths.forEach(mapperPath -> {
+            try {
+                SAXReader saxReader = new SAXReader();
+                Document document = saxReader.read(Resources.getResourceAsStream(mapperPath));
+
+                Element mapperElement = (Element) document.selectSingleNode("//mapper");
+                String namespace = mapperElement.attributeValue("namespace");
+
+                List<Element> sqlStatementLabels = mapperElement.elements();
+                sqlStatementLabels.forEach(sqlStatementLabel -> {
+                    String id = sqlStatementLabel.attributeValue("id");
+                    String resultType = sqlStatementLabel.attributeValue("resultType");
+                    String sqlStatement = sqlStatementLabel.getTextTrim();
+
+                    String sqlId = namespace + "." + id;
+                    MappedStatement mappedStatement = new MappedStatement(resultType, sqlStatement);
+
+                    mappedStatements.put(sqlId, mappedStatement);
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+        return mappedStatements;
+    }
+
+
+    private Transaction parseTransactionManager(Element environmentElement) {
+        Transaction transaction = null;
+        DataSource dataSource = null;
+        Map<String, String> dataSourceInfo = new HashMap<>();
+
+        // 事务管理器
+        Element transactionManagerElement = environmentElement.element("transactionManager");
+        String transactionManagerType = transactionManagerElement.attributeValue("type");
+
+        // 数据源
+        Element dataSourceElement = environmentElement.element("dataSource");
+        String dataSourceType = dataSourceElement.attributeValue("type");
+        List<Element> propertyElement = dataSourceElement.elements();
+
+        propertyElement.forEach(element -> {
+            dataSourceInfo.put(element.attributeValue("name"), element.attributeValue("value"));
+        });
+
+        if (Constants.TRANSACTION_MANAGER_TYPE_UN_POOLED.equals(dataSourceType.trim())) {
+            dataSource = new UnPooledDataSource(
+                dataSourceInfo.get("driver"),
+                dataSourceInfo.get("url"),
+                dataSourceInfo.get("username"),
+                dataSourceInfo.get("password")
+            );
+        }
+
+        if (Constants.TRANSACTION_MANAGER_TYPE_POOLED.equals(dataSourceType.trim())) {
+            // 暂未实现...
+        }
+
+        if (Constants.TRANSACTION_MANAGER_TYPE_JNDI.equals(dataSourceType.trim())) {
+            // 暂未实现...
+        }
+
+
+        if (Constants.TRANSACTION_MANAGER_TYPE_JDBC.equals(transactionManagerType.trim())) {
+            transaction = new JdbcTransaction(dataSource, false);
+        }
+
+        if (Constants.TRANSACTION_MANAGER_TYPE_MANAGED.equals(transactionManagerType.trim())) {
+            // 暂未实现...
+        }
+        return transaction;
+    }
+}
+
+```
+
+
+
+### SqlSessionFactory
+
+```java
+
+public class SqlSessionFactory {
+    /**
+     * 事务管理器对象
+     */
+    private Transaction transaction;
+
+
+    /**
+     * Mapper对象
+     */
+    private Map<String, MappedStatement> mappedStatement;
+
+    public SqlSessionFactory(Transaction transaction, Map<String, MappedStatement> mappedStatement) {
+        this.transaction = transaction;
+        this.mappedStatement = mappedStatement;
+    }
+
+    public Transaction getTransaction() {
+        return transaction;
+    }
+
+    public Map<String, MappedStatement> getMappedStatement() {
+        return mappedStatement;
+    }
+
+    public SqlSession openSession() {
+        transaction.openConnection();
+        return new SqlSession(this);
+    }
+}
+
+```
+
+
+
+### SqlSession
+
+```java
+public class SqlSession {
+    private SqlSessionFactory sqlSessionFactory;
+
+
+    public SqlSession(SqlSessionFactory sqlSessionFactory) {
+        this.sqlSessionFactory = sqlSessionFactory;
+    }
+
+    public Object selectOne(String sqlId, Object o) {
+        Object object = null;
+        try {
+            Connection connection = sqlSessionFactory.getTransaction().getConnection();
+            MappedStatement mappedStatement = sqlSessionFactory.getMappedStatement().get(sqlId);
+
+            String sqlStatement = mappedStatement.getSqlStatement();
+            String resultType = mappedStatement.getResultType();
+
+            String sql = sqlStatement.replaceAll("#\\{[a-zA-Z0-9_$]*}", "?");
+
+            PreparedStatement preparedStatement = connection.prepareStatement(sql);
+            preparedStatement.setString(1, o.toString());
+
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            if (resultSet.next()) {
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                Class<?> aClass = Class.forName(resultType);
+                object = aClass.getDeclaredConstructor().newInstance();
+                for (int i = 0; i < metaData.getColumnCount(); i++) {
+                    String columnName = metaData.getColumnName(i + 1);
+                    String columnValue = resultSet.getString(columnName);
+                    // 通过反射给对象赋值
+                    String methodName = "set" + columnName.toUpperCase().charAt(0) + columnName.substring(1);
+                    Method declaredMethod = aClass.getDeclaredMethod(methodName, String.class);
+                    declaredMethod.invoke(object, columnValue);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return object;
+    }
+
+    public int update(String sqlId, Object o) {
+        int count = 0;
+        try {
+            // 数据库连接对象
+            Connection connection = sqlSessionFactory.getTransaction().getConnection();
+            // SQL语句对象
+            MappedStatement mappedStatement = sqlSessionFactory.getMappedStatement().get(sqlId);
+
+            // SQL语句
+            String sqlStatement = mappedStatement.getSqlStatement();
+
+            // 将SQL语句中的 #{?} 替换成 ？
+            String sql = sqlStatement.replaceAll("#\\{[A-Za-z0-9_$]*}", "?");
+            System.out.println("sqlStatement = " + sqlStatement);
+
+            int currentPositionIndex = 0;
+            int currentIndex = 0;
+            PreparedStatement preparedStatement = connection.prepareStatement(sql);
+
+            while (true) {
+                int beginIndex = sqlStatement.indexOf("#{", currentPositionIndex);
+                if (beginIndex == -1) {
+                    break;
+                }
+                int endIndex = sqlStatement.indexOf("}", currentPositionIndex);
+                currentPositionIndex = endIndex + 1;
+                ++currentIndex;
+                String propertyName = sqlStatement.substring(beginIndex + 2, endIndex);
+
+                Method method = o.getClass().getMethod("get" + propertyName.toUpperCase().charAt(0) + propertyName.substring(1));
+                Object value = method.invoke(o);
+                preparedStatement.setString(currentIndex, value.toString());
+                System.out.println("currentIndex = " + currentIndex);
+                System.out.println("propertyName = " + propertyName + ", propertyValue = " + value);
+            }
+
+            count = preparedStatement.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return count;
+    }
+
+
+    public void commit() {
+        sqlSessionFactory.getTransaction().commit();
+    }
+
+
+    public void rollback() {
+        sqlSessionFactory.getTransaction().rollback();
+    }
+
+
+    public void close() {
+        sqlSessionFactory.getTransaction().close();
+    }
+
+
+    //    public static void main(String[] args) {
+    //        String sql = "insert into  t_phone values(#{id}, #{name}, #{price})";
+    //
+    //        int currentPositionIndex = 0;
+    //        int currentIndex = 0;
+    //
+    //        while (true) {
+    //            int beginIndex = sql.indexOf("#{", currentPositionIndex);
+    //            if (beginIndex == -1) {
+    //                break;
+    //            }
+    //            int endIndex = sql.indexOf("}", currentPositionIndex);
+    //            currentPositionIndex = endIndex + 1;
+    //            ++currentIndex;
+    //            String propertyName = sql.substring(beginIndex + 2, endIndex);
+    //            System.out.println("propertyName = " + propertyName);
+    //            System.out.println("currentIndex = " + currentIndex);
+    //        }
+    //    }
+}
+
+```
+
+
+
+### Resources工具类
+
+```java
+public class Resources {
+    private Resources() {
+    }
+
+    public static InputStream getResourceAsStream(String resources) {
+        return ClassLoader.getSystemClassLoader().getResourceAsStream(resources);
+    }
+}
+
+```
+
+
+
+### 常量工具类
+
+```java
+public class Constants {
+    public static final String TRANSACTION_MANAGER_TYPE_JDBC = "JDBC";
+    public static final String TRANSACTION_MANAGER_TYPE_MANAGED = "MANAGED";
+
+    public static final String TRANSACTION_MANAGER_TYPE_POOLED = "POOLED";
+    public static final String TRANSACTION_MANAGER_TYPE_UN_POOLED = "UNPOOLED";
+    public static final String TRANSACTION_MANAGER_TYPE_JNDI = "JNDI";
+}
+
+```
+
+
+
+### 事务管理器
+
+1. JdbcTransaction（简单实现）
+2. ManagedTransaction
+
+```java
+public interface Transaction {
+
+    /**
+     * 提交事务
+     */
+    void commit();
+
+    /**
+     * 回滚事务
+     */
+    void rollback();
+
+
+    /**
+     * 关闭连接
+     */
+    void close();
+
+
+    /**
+     * 打开链接
+     */
+    void openConnection();
+
+    /**
+     * 获取连接
+     */
+    Connection getConnection();
+}
+
+```
+
+```java
+public class JdbcTransaction implements Transaction {
+
+    /**
+     * 数据源对象, 凡是是数据源就必须实现javax.sql.DataSource接口
+     * 这里使用面向接口编方式, 可能的实现类有三种：
+     * UNPOOLED
+     * POOLED
+     * JNDI
+     */
+    private DataSource dataSource;
+
+    /**
+     * 是否开启事务
+     */
+    private boolean autoCommit;
+
+    /**
+     * 连接对象
+     */
+    private Connection connection = null;
+
+
+    public JdbcTransaction(DataSource dataSource, boolean autoCommit) {
+        this.dataSource = dataSource;
+        this.autoCommit = autoCommit;
+    }
+
+    @Override
+    public void commit() {
+        try {
+            connection.commit();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void rollback() {
+        try {
+            connection.rollback();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void close() {
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    /**
+     * 保证当前实例对象 拿到的Connection对象是同一个
+     */
+    @Override
+    public void openConnection() {
+        if (this.connection == null) {
+            try {
+                connection = dataSource.getConnection();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+    /**
+     * 将Connection对象暴露给外部
+     */
+    @Override
+    public Connection getConnection() {
+        return connection;
+    }
+
+}
+
+```
+
+```java
+public class ManagedTransaction implements Transaction {
+	// ...
+}
+
+```
+
+
+
+### 数据源
+
+1. UnPooledDataSource（简单实现）
+2. JNDIDataSource
+3. PooledDataSource
+
+```java
+public class UnPooledDataSource implements DataSource {
+
+    private String driver;
+    private String url;
+    private String user;
+    private String password;
+
+    public UnPooledDataSource(String driver, String url, String user, String password) {
+        try {
+            Class.forName(driver);
+            System.out.println("加载数据库链接【" + driver + "】...");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        this.driver = driver;
+        this.url = url;
+        this.user = user;
+        this.password = password;
+    }
+
+    /**
+     * 获取数据库连接对象
+     *
+     * @return Connection
+     * @throws SQLException
+     */
+    @Override
+    public Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(url, user, password);
+    }
+
+    @Override
+    public Connection getConnection(String username, String password) throws SQLException {
+        return null;
+    }
+
+    @Override
+    public PrintWriter getLogWriter() throws SQLException {
+        return null;
+    }
+
+    @Override
+    public void setLogWriter(PrintWriter out) throws SQLException {
+
+    }
+
+    @Override
+    public void setLoginTimeout(int seconds) throws SQLException {
+
+    }
+
+    @Override
+    public int getLoginTimeout() throws SQLException {
+        return 0;
+    }
+
+    @Override
+    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        return null;
+    }
+
+    @Override
+    public <T> T unwrap(Class<T> iface) throws SQLException {
+        return null;
+    }
+
+    @Override
+    public boolean isWrapperFor(Class<?> iface) throws SQLException {
+        return false;
+    }
+}
+
+```
+
+```java
+public class PooledDataSource implements DataSource {
+    // ...
+}
+```
+
+```java
+public class JNDIDataSource implements DataSource {
+    // ...
+}
+```
+
+
+
+### MappedStatement
+
+```java
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class MappedStatement {
+    private String resultType;
+    private String sqlStatement;
+}
+```
+
+
+
+
+
+### 配置文件模板
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration>
+
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC"/>
+            <dataSource type="UNPOOLED">
+                <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
+                <property name="url" value="jdbc:mysql://localhost:3306/powernode_mybatis"/>
+                <property name="username" value="root"/>
+                <property name="password" value="123456"/>
+            </dataSource>
+        </environment>
+
+        <environment id="production">
+            <transactionManager type="JDBC"/>
+            <dataSource type="UNPOOLED">
+                <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
+                <property name="url" value="jdbc:mysql://localhost:3306/powernode_mybatis"/>
+                <property name="username" value="production_root"/>
+                <property name="password" value="production_root123!@#"/>
+            </dataSource>
+        </environment>
+    </environments>
+
+    <mappers>
+        <mapper resource="phoneMapper.xml"/>
+    </mappers>
+
+</configuration>
+```
+
+
+
+### SqlMapper.xml模板
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="phone">
+
+    <select id="selectById" resultType="org.god.batis.pojo.Phone">
+        select id, name, price from t_phone where id = #{id}
+    </select>
+
+    <select id="insert" >
+        insert into  t_phone values(#{id}, #{name}, #{price})
+    </select>
+
+    <select id="update" >
+        update t_phone set name = #{name}, price = #{price} where id = #{id}
+    </select>
+
+    <delete id="delete">
+        delete from t_phone where id = #{id}
+    </delete>
+</mapper>
+```
+
+
+
+### 测试代码
+
+```java
+@RunWith(JUnit4.class)
+public class GodBatisTest {
+
+    @Test
+    public void testSqlSessionFactory() {
+        SqlSessionFactoryBuilder sqlSessionFactoryBuilder = new SqlSessionFactoryBuilder();
+        SqlSessionFactory sessionFactory = sqlSessionFactoryBuilder.build(Resources.getResourceAsStream("godbatis-config.xml"));
+        System.out.println("sessionFactory = " + sessionFactory);
+
+        SqlSession sqlSession = sessionFactory.openSession();
+
+        // 查询单个
+        Object object = sqlSession.selectOne("phone.selectById", 2);
+        System.out.println("object = " + object);
+
+
+        // 更新数据
+        // int count = sqlSession.update("phone.update", new Phone("1", "小米11", "8888"));
+        // System.out.println("count = " + count);
+    }
+}
+```
