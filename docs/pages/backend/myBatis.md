@@ -1,6 +1,6 @@
 # MyBatis
 
-## MyBatis概述
+## MyBatis 概述
 
 ### 什么是框架
 
@@ -730,7 +730,7 @@ public class SqlSessionUtil {
 
 
 
-## MyBatis的增删改查
+## MyBatis 增删改查
 
 ### 完成insert使用Map传参
 
@@ -1139,7 +1139,7 @@ public class SqlSessionUtil {
 
    
 
-## MyBatis配置文件详解
+## MyBatis 配置文件详解
 
 ### 多环境配置 environments
 
@@ -2309,7 +2309,7 @@ public void testCreateClassAndImplementInterfaceAndAllMethods() throws Exception
 
 
 
-## MyBatis小技巧
+## MyBatis 小技巧
 
 ### #{}和${}区别
 
@@ -2645,7 +2645,7 @@ public void testCreateClassAndImplementInterfaceAndAllMethods() throws Exception
 
 
 
-## MyBatis参数处理
+## MyBatis 参数处理
 
 ### 单个简单类型参数
 
@@ -3093,7 +3093,7 @@ int selectCount();
 
      如果字段不遵循命名规范，那么开启驼峰命名自动映射会失效！！
 
-## MyBatis动态SQL
+## MyBatis 动态SQL
 
 ​		如果你使用过 JDBC 或其它类似的框架，你应该能理解根据不同条件拼接 SQL 语句有多痛苦，例如拼接时要确保不能忘记添加必要的空格，还要注意去掉列表最后一个列名的逗号。利用动态 SQL，可以彻底摆脱这种痛苦。
 
@@ -3481,3 +3481,1117 @@ public void testUpdateWithSet() {
 
    
 
+## Mybatis 高级映射和延迟加载
+
+### 数据表准备
+
++ 班级表
+
+  ```sql
+  create table `t_clazz` (
+      `cid` int not null auto_increment,
+      `cname` varchar(255) not null,
+      primary key (`cid`)
+  ) engine=innodb auto_increment=3 default charset=utf8mb3;
+  
+  insert into `powernode_mybatis`.`t_clazz` (`cid`, `cname`) values ('1', '前端开发就业班');
+  insert into `powernode_mybatis`.`t_clazz` (`cid`, `cname`) values ('2', 'java开发就业班');
+  ```
+
+  
+
++ 学生表
+
+  ```sql
+  create table `t_student` (
+      `sid` int not null auto_increment,
+      `sname` varchar(255) not null,
+      `cid` int not null,
+      primary key (`sid`)
+  ) engine=innodb auto_increment=6 default charset=utf8mb3;
+  
+  insert into `powernode_mybatis`.`t_student` (`sid`, `sname`, `cid`) values ('1', '张三', '1');
+  insert into `powernode_mybatis`.`t_student` (`sid`, `sname`, `cid`) values ('2', '李四', '1');
+  insert into `powernode_mybatis`.`t_student` (`sid`, `sname`, `cid`) values ('3', '王五', '2');
+  insert into `powernode_mybatis`.`t_student` (`sid`, `sname`, `cid`) values ('4', '赵六', '2');
+  insert into `powernode_mybatis`.`t_student` (`sid`, `sname`, `cid`) values ('5', '钱七', '2');
+  ```
+
+  
+
+### 数据库关联关系
+
+1. 数据库中常见的表关联关系：一对一、一对多、多对一、多对多。
+
+2. 进行非一对一的Java实体类关系设计时，记住规则：
+
+   + 一对多、多对一，前者是主表后者是副表，在jvm中表示：前者是主对象者是副对象，主对象包含副对象。
+
+   + 比如现有两张表，学生表（t_student）、班级表（t_clazz），两个表分别对应两个实体类。
+
+     ```java
+     public class Student {
+         private Integer sid;
+         private String sname;
+     }
+     ```
+
+     ```java
+     public class Clazz {
+         private Integer cid;
+         private String cname;
+     }
+     ```
+
+     
+
+     + 一对多
+
+       + 一个班级对应多个学生，t_clazz是主表，t_student是附表。
+
+       + clazz对象中，通过一个数组或者集合保存Student信息。
+
+         ```java
+         // 班级对象
+         public class Clazz {
+             private Integer cid;
+             private String cname;
+             // 学生列表
+             private List<Student> studentList;
+         }
+         ```
+
+         
+
+     + 多对一
+
+       + 多个学生对应一个班级，t_student是主表，t_clazz是附表。
+
+       + Student对象中保存一个clazz对象。
+
+         ```java
+         // 学生对象
+         public class Student {
+             private Integer sid;
+             private String sname;
+             // 班级信息
+             private Clazz clazz;
+         }
+         ```
+
+         
+
+### 一对多
+
+1. 任务需求
+
+   + 需求
+
+     + 查询每个班级包含了那些学生！
+
+   + 实现方式
+
+     + 通过collection标签进行映射，一条sql语句实现。
+
+       ```xml
+       <!-- 结果集映射-->
+       <mapper namespace="com.ilovesshan.mapper.ClazzMapper">
+           <resultMap id="selectWithCollectionMap" type="clazz">
+               <id column="cid" property="cid"/>
+               <result column="cname" property="cname"/>
+               <!--
+                   collection标签: 用于一对多情况
+                       property: 实体类的属性名称
+                       ofType: 集合中保存的数据类型
+          		 -->
+               <collection property="studentList" ofType="student">
+                   <id column="sid" property="sid"/>
+                   <result column="sname" property="sname"/>
+               </collection>
+           </resultMap>
+       
+       
+           <select id="selectWithCollection" resultMap="selectWithCollectionMap">
+               select 
+               	s.sid, s.sname, c.cid, c.cname
+               from 
+               	t_student s left join t_clazz c on s.cid = c.cid
+               where 
+               	c.cid = #{cid}
+           </select>
+       </mapper>
+       ```
+
+       
+
+     + 分步查询，两条sql语句实现。
+
+       ```xml
+       <mapper namespace="com.ilovesshan.mapper.ClazzMapper">
+          <!-- 结果集映射-->
+           <resultMap id="selectByIdMap" type="clazz">
+               <id column="cid" property="cid"/>
+               <result column="cname" property="cname"/>
+               <!--
+                   select: 要执行的SQL语句ID
+                   column: 向要执行的SQL语句中传递的参数
+               -->
+               <collection property="studentList" select="com.ilovesshan.mapper.StudentMapper.selectByCid" column="cid" />
+           </resultMap>
+       
+       
+           
+           <select id="selectById" resultMap="selectByIdMap">
+               select cid, cname from  t_clazz  where cid = #{cid}
+           </select>
+       </mapper>
+       ```
+
+       ```xml
+       <mapper namespace="com.ilovesshan.mapper.StudentMapper">
+           <select id="selectByCid" resultType="student">
+               select sid, sname from t_student where cid = #{cid}
+           </select>
+       </mapper>
+       ```
+
+       
+
+### 多对一
+
+1. 任务需求
+
+   + 需求
+
+     + 查询每个学生对应的班级信息！
+
+   + 实现方式
+
+     + 通过属性级联查询、一条sql语句实现。
+
+       ```xml
+       <!-- 结果集映射-->
+       <mapper namespace="com.ilovesshan.mapper.StudentMapper">
+           <resultMap id="selectBySidMap" type="student">
+               <id column="sid" property="sid"/>
+               <result column="sname" property="sname"/>
+               <result column="cid" property="clazz.cid"/>
+               <result column="cname" property="clazz.cname"/>
+           </resultMap>
+       
+           <select id="selectBySid" resultMap="selectBySidMap">
+               select
+               	s.sid, s.sname, c.cid, c.cname
+               from
+               	t_student s left join t_clazz c on s.cid = c.cid
+               where 
+               	s.sid = #{sid}
+           </select>
+       </mapper>
+       ```
+
+       
+
+     + 通过association 标签进行映射、一条sql语句实现。
+
+       ```xml
+       <!-- 结果集映射-->
+       <mapper namespace="com.ilovesshan.mapper.StudentMapper">
+           <resultMap id="selectBySidWithAssociationMap" type="student">
+               <id column="sid" property="sid"/>
+               <result column="sname" property="sname"/>
+               <!--
+                 association: 用于多对一的关系
+                  property: 实体类的名称
+                  javaType: 实体类的类型
+                -->
+               <association property="clazz" javaType="clazz">
+                   <id column="cid" property="cid"/>
+                   <result column="cname" property="cname"/>
+               </association>
+           </resultMap>
+       
+           <select id="selectBySidWithAssociation" resultMap="selectBySidWithAssociationMap">
+               select
+               	s.sid, s.sname, c.cid, c.cname
+               from
+               	t_student s left join t_clazz c on s.cid = c.cid
+               where 
+               	s.sid = #{sid}
+           </select>
+       </mapper>
+       ```
+
+       
+
+     + 分步查询，两条sql语句实现。
+
+       ```xml
+       <mapper namespace="com.ilovesshan.mapper.StudentMapper">
+           <resultMap id="selectBySidWithStepMap" type="student">
+               <id column="sid" property="sid"/>
+               <result column="sname" property="sname"/>
+               <association select="com.ilovesshan.mapper.ClazzMapper.selectByCId" property="clazz" column="cid"/>
+           </resultMap>
+       
+           <select id="selectBySidWithStep" resultMap="selectBySidWithStepMap">
+               select sid, sname, cid from t_student where sid = #{sid}
+           </select>
+       </mapper>
+       ```
+
+       ```xml
+       <mapper namespace="com.ilovesshan.mapper.ClazzMapper">
+           <select id="selectByCId" resultType="clazz">
+               select cid, cname from  t_clazz  where cid = #{cid}
+           </select>
+       </mapper>
+       ```
+
+
+
+### 查询结果延迟加载
+
+1. 查询结果延迟加载
+
+   + 等数据用到了再进行查询，不用就不查询！
+   + 目的是提高系统性能，避免查询无用的数据，不使用就不查呗！！
+
+2. 要使用 查询结果延迟加载 的前提是：**使用分步查询**，我们可以在collection 或者 association标签中配置 fetchType属性来设置是否要启用延迟加载。
+
+   + fetchType="eager"：不启用延迟加载（默认）
+   + fetchType="lazy"：启用延迟加载
+
+3. 全局配置开启 查询结果延迟加载
+
+   + 在mybatis配置文件中添加如下配置
+
+     ```xml
+     <settings>
+         <!-- 
+           延迟加载的全局开关。当开启时，所有关联对象都会延迟加载。 
+           特定关联关系中可通过设置 fetchType 属性来覆盖该项的开关状态。
+         -->
+         <setting name="lazyLoadingEnabled" value="true"/>
+     </settings>
+     ```
+
+
+
+### collection 和 association 区别
+
+1. collection 和 association 区别
+
+   + collection
+
+     + collection标签：用于 一对多的关系
+
+     + collection标签的“ofType”属性，用于指定及集合中元素的类型
+
+       
+
+   + association
+
+     + association标签：用于 多对一的关系
+
+     + association标签的“javaType”属性，用于指定实体类属性类型
+
+       
+
+2. collection 和 association 相同点
+
+   + “property”属性，用于指定实体类属性名称
+
+   + “fetchType”属性，用于设置是否启用延迟加载
+
+   + “select”属性，用于指定执行某个SQL的ID
+
+   + “columns”属性，向执行的SQL语句传递参数。注意注意： 在处理组合键时，您可以使用***\*column= “{prop1=col1,prop2=col2}”\****这样的语法，设置多个列名传入到嵌套查询语句。这就会把*prop1*和*prop2*设置到目标嵌套选择语句的参数对象中。
+
+     
+
+## MyBatis 缓存机制
+
+### 什么是缓存
+
+1. 缓存含义：将数据缓存在内存中，使用时直接从内存中取，减少IO操作。
+2. 常见的缓存
+   + 字符串常量池
+   + 整型常量池，范围在[-128, 127]内的整数，装箱成包装类时，底层不会new对象。共用在整数常量池当中的256个Integer对象。
+   + 线程池
+   + mongodb、memcached、Redis....
+
+### MyBatis 的缓存
+
+1. MyBatis 缓存分为：一级缓存和二级缓存
+2. MyBatis 缓存分：
+   + 执行DQL语句时，如果缓存中有数据那就从缓存中取，如果没有那就再从数据库中查询！
+   + 使用MyBatis 缓存可以提高系统性能，减少IO操作。
+
+###  一级缓存
+
+1. mybatis默认开启一级缓存，作用域范围是SqlSession，当SqlSession被 flush（刷新）或者 close（关闭）之后，SqlSession中所有缓存就会被清空。
+
+   
+
+2. 在参数和SQL语句完全一样的情况下，通过同一个SqlSession对象调用同一个Mapper的方法，Mybatis往往只会发送一次SQL语句到数据库，原因是：因为第一次执行SQL之后，会将数据放在缓存中，如果SqlSession没有刷新/关闭/缓存没有超时的情况下，第二次查询就直接从缓存中取，就不会再次发送SQL语句到数据库。
+
+   
+
+3. 由于SqlSession是隔离的，使用不同的SqlSession对象调用相同的Mapper方法，mybatis还是会再次再次发送SQL语句到数据库。
+
+   
+
+4. 代码演示
+
+   ```java
+   public interface CarMapper {
+       Car selectById(Long id);
+       int deleteById(Long id);
+       int deleteOtherTableById(Long id);
+   }
+   ```
+
+   ```xml
+   <mapper namespace="com.ilovesshan.mapper.CarMapper">
+   
+       <sql id="allColumns">
+           id, car_num, brand, guide_price, produce_time, car_type
+       </sql>
+   
+       <delete id="deleteById">
+           delete from t_car where id = #{id}
+       </delete>
+   
+       <!-- 仅仅测试，代码并不规范-->
+       <delete id="deleteOtherTableById">
+           delete from t_log_20230314 where id = #{id}
+       </delete>
+   
+       <select id="selectById" resultType="car">
+           select <include refid="allColumns" /> from t_car where id = #{id}
+       </select>
+   
+   </mapper>
+   ```
+
+   ```java
+   @Test
+   public void testSelectById() {
+       Car car1 = mapper.selectById(9L);
+       System.out.println("car1 = " + car1);
+   
+       // 清空缓存(下面的查询不走缓存)
+       // sqlSession.clearCache();
+   
+       // 执行DML语句，和表没关系(下面的查询不走缓存)
+       // int affectRows = mapper.deleteById(11L);
+       // int affectRows = mapper.deleteOtherTableById(10L);
+       // System.out.println("affectRows = " + affectRows);
+   
+       Car car2 = mapper.selectById(9L);
+       System.out.println("car2 = " + car2);
+   
+       sqlSession.commit();
+       sqlSession.close();
+   }
+   ```
+
+   
+
+   
+
+### 二级缓存
+
+1. MyBatis 二级缓存（全局缓存）其实也是默认开启的，仅仅在于你用不用的问题。
+
+   ```xml
+   <settings>
+       <!-- 全局性地开启或关闭所有映射器配置文件中已配置的任何缓存（默认是开始）-->
+       <setting name="cacheEnabled" value="true"/>
+   </settings>
+   ```
+
+   
+
+2. MyBatis 二级缓存作用域范围是SqlSessionFactory，前面说过SqlSession是通过SqlSessionFactory造出来的，也就意味着，MyBatis 二级缓存中的缓存数据是被同一个SqlSessionFactory对象造出来SqlSession共享的。
+
+   
+
+3. 使用mybatis二级缓存的步骤
+
+   + mybatis配置文件中配置 cacheEnabled="true"，默认就是开启的。
+
+     ```xml
+     <settings>
+         <setting name="cacheEnabled" value="true" />
+     </settings>
+     ```
+
+     
+
+   + 在SqlMapper.xml中开启缓存（默认不开启），通过添加\<cache>标签开启。
+
+     ```xml
+     <mapper namescape="com.ilovesshan.mapper.CarMapper">
+         <!-- cache配置 -->
+         <cache />
+     </mapper>
+     ```
+
+   + 在 mapper 文件配置支持 cache 后，如果需要对个别查询进行调整，可以单独设置 cache
+
+     ```xml
+     <select id="selectList" resultType="car" usecache="true">
+         ...
+     </select>
+     ```
+
+     
+
+4. 关于cache标签的属性说明
+
+   ```xml
+   <cache
+          eviction="FIFO"
+          flushInterval="60000"
+          size="512"
+          readOnly="true" />
+   ```
+
+   
+
+   + eviction，代表的是缓存回收策略，目前 MyBatis 提供以下策略。
+
+     + LRU：使用较少（最近最少使用），移除最长时间不用的对象；
+
+     + FIFO：先进先出，按对象进入缓存的顺序来移除它们；
+
+     + SOFT：软引用，移除基于垃圾回收器状态和软引用规则的对象；
+
+     + WEAK：弱引用，更积极地移除基于垃圾收集器状态和弱引用规则的对象。
+
+       
+
+   + flushInterval
+
+     + 刷新间隔时间，单位为毫秒，这里配置的是 100 秒刷新，如果省略该配置，那么只有当 SQL 被执行的时候才会刷新缓存。
+
+       
+
+   + size
+
+     + 引用数目，正整数，代表缓存最多可以存储多少个对象。
+
+     + 不宜设置过大，设置过大会导致内存溢出。这里配置的是 1024 个对象。
+
+       
+
+   + readOnly
+
+     + 只读，默认值为 false，意味着缓存数据只能读取而不能修改，这样设置的好处是可以快速读取缓存，缺点是没有办法修改缓存。
+     + readOnly = "false"
+       + 缓存的对象在jvm中是同一个（堆地址一样），优点：不频繁创建对象快速读取缓存，缺点是：高并发时修改数据会导致数据混乱。
+     + readOnly = "true"
+       + 缓存的对象每个都是独立的，被clone了一份。优点：可以安全修改数据，缺点是：会频繁创建对象性能不及readOnly = "false"。
+
+5. 代码演示
+
+   ```java
+   @Test
+   public void testSelectById2() throws IOException {
+       SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(Resources.getResourceAsStream("mybatis-config.xml"));
+       SqlSession sqlSession1 = sqlSessionFactory.openSession();
+       SqlSession sqlSession2 = sqlSessionFactory.openSession();
+   
+       // 注意： 使用mybatis的默认二级缓存 Car实体类需要实现Serializable接口
+       // 观察日志：Cache Hit Ratio [com.ilovesshan.mapper.CarMapper]: 0.0
+       Car car1 = sqlSession1.getMapper(CarMapper.class).selectById(9L);
+       System.out.println("car1 = " + car1);
+   
+   
+       // (相同的sqlSessionFactory造出的任意SqlSession对象)执行DML语句（下面的查询不走缓存）
+       //  int affectRows = sqlSession2.getMapper(CarMapper.class).deleteOtherTableById(10L);
+       // System.out.println("affectRows = " + affectRows);
+       // sqlSession2.commit();
+   
+       // 注意， 这里需要关闭sqlSession1， 数据才会从一级缓 存缓存到二级缓存中
+       sqlSession1.close();
+   
+       // 观察日志：Cache Hit Ratio [com.ilovesshan.mapper.CarMapper]: 0.5
+       Car car2 = sqlSession2.getMapper(CarMapper.class).selectById(9L);
+       System.out.println("car2 = " + car2);
+       sqlSession2.close();
+   }
+   ```
+
+   
+
+   
+
+###   一级、二级缓存总结
+
+1.   一级、二级缓存相同点
+
+   + 只有执行DQL语句才有缓存的说法
+   + 减少磁盘IO，直接从内存中取数据提高系统性能。
+
+2. 一级、二级缓存不同点
+
+   + 作用域不同
+     + 【一级】SqlSession，不是同一个SqlSession对象即使调用相同接口Mapper的方法也不走缓存。
+     + 【二级】SqlSessionFactory
+   + 缓存机制不同
+     + 【一级】缓存的是SQL语句
+     + 【二级】缓存的是数据结果
+
+3. 什么时候走缓存？
+
+   + 【一级缓存】同一个SqSession对象调用同一个Mapper接口的方法
+   + 【二级缓存】同一个SqSessionFactory造出来的SqSession对象，并且调用同一个Mapper接口的方法。
+
+4. 什么时候缓存会失效？
+
+   + 【一级/二级缓存】在两次查询之间，执行DML语句（INSERT、DELETE、UPDATE）。
+   + 【一级缓存】手动清空缓存。
+
+5. 使用二级缓存的注意点
+
+   + 需要commit事务或者关闭sqlSession之后才会生效
+
+   + 如果使用的是默认缓存，那么结果集对象需要实现序列化接口(Serializable)
+
+     
+
+### 集成三方缓存
+
+1. 集成 ehcache
+
+   ```xml
+   <dependency>
+       <groupId>org.mybatis.caches</groupId>
+       <artifactId>mybatis-ehcache</artifactId>
+       <version>1.2.1</version>
+   </dependency>
+   
+   ```
+
+   ehcache.xml
+
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:noNamespaceSchemaLocation="http://ehcache.org/ehcache.xsd"
+            updateCheck="false" dynamicConfig="false"
+            >
+       <!-- 磁盘保存路径 -->
+       <diskStore path="D:\www\ehcache" />
+   
+       <defaultCache
+                     maxElementsInMemory="10000"
+                     maxElementsOnDisk="10000000"
+                     eternal="false"
+                     overflowToDisk="true"
+                     timeToIdleSeconds="120"
+                     timeToLiveSeconds="120"
+                     diskExpiryThreadIntervalSeconds="120"
+                     memoryStoreEvictionPolicy="LRU">
+       </defaultCache>
+   </ehcache>
+   
+   <!--
+           属性说明：
+           l diskStore：指定数据在磁盘中的存储位置。
+           l defaultCache：当借助CacheManager.add("demoCache")创建Cache时，EhCache便会采用<defalutCache/>指定的的管理策略
+            -->
+   
+   ```
+
+   ```xml
+   <mapper namespace="com.ilovesshan.mapper.CarMapper">
+       <!-- 使用第三方缓存 EhcacheCache -->
+       <cache type="org.mybatis.caches.ehcache.EhcacheCache"/>
+   </mapper>
+   ```
+
+   
+
+2. 使用自定义缓存
+
+   + 继承 org.mybatis.caches.ehcache.AbstractEhcacheCache 抽象类
+
+     ```java
+     public class MyCache extends AbstractEhcacheCache {
+     
+         private final Map<Object, Object> cache = new HashMap<>();
+     
+         private String id = null;
+     
+     
+         public MyCache(String id) {
+             super(id);
+             this.id = id;
+             System.out.println("constructor【" + id + "】");
+         }
+     
+         @Override
+         public String getId() {
+             return id;
+         }
+     
+         @Override
+         public void putObject(Object key, Object value) {
+             System.out.println("putObject   key = " + key);
+             System.out.println("putObject   value = " + value);
+     
+             cache.put(key, value);
+     
+         }
+     
+         @Override
+         public Object getObject(Object key) {
+             System.out.println("getObject   key = " + key);
+             return cache.get(key);
+         }
+     
+         @Override
+         public Object removeObject(Object key) {
+             System.out.println("removeObject   key = " + key);
+             return cache.remove(key);
+         }
+     
+         @Override
+         public void clear() {
+             cache.clear();
+             System.out.println("clear  ...");
+         }
+     
+         @Override
+         public int getSize() {
+             System.out.println("getSize  ...");
+             return cache.size();
+         }
+     }
+     
+     ```
+
+   + 使用自定义缓存
+
+     ```xml
+     <mapper namespace="com.ilovesshan.mapper.CarMapper">
+         <!-- 使用自定义缓存-->
+         <cache type="com.ilovesshan.cache.MyCache"/>
+     </mapper>
+     ```
+
+     
+
+     ```java
+     @Test
+     public void testSelectById2() throws IOException {
+         SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(Resources.getResourceAsStream("mybatis-config.xml"));
+         SqlSession sqlSession1 = sqlSessionFactory.openSession();
+         SqlSession sqlSession2 = sqlSessionFactory.openSession();
+     
+         Car car1 = sqlSession1.getMapper(CarMapper.class).selectById(9L);
+         System.out.println("car1 = " + car1);
+         sqlSession1.close();
+         
+         Car car2 = sqlSession2.getMapper(CarMapper.class).selectById(9L);
+         System.out.println("car2 = " + car2);
+         sqlSession2.close();
+     
+     }
+     ```
+
+     ```java
+     Checking to see if class com.ilovesshan.mapper.CarMapper matches criteria [is assignable to Object]
+     constructor【com.ilovesshan.mapper.CarMapper】
+     
+     
+     // 第一次查询，尝试从缓存取数据（取不到）
+     getObject   key = 1092708538:2426216153:com.ilovesshan.mapper.CarMapper.selectById:0:2147483647:select  
+     id, car_num, brand, guide_price, produce_time, car_type
+     from t_car where id = ?:9:development
+     
+     
+     // 发送SQL语句到数据库查询
+     Cache Hit Ratio [com.ilovesshan.mapper.CarMapper]: 0.0
+     Opening JDBC Connection
+     Created connection 1907604549.
+     Setting autocommit to false on JDBC Connection [com.mysql.cj.jdbc.ConnectionImpl@71b3bc45]
+     ==>  Preparing: select id, car_num, brand, guide_price, produce_time, car_type from t_car where id = ?
+     ==> Parameters: 9(Long)
+     <==    Columns: id, car_num, brand, guide_price, produce_time, car_type
+     <==        Row: 9, 777777, 现代伊兰特, 140000.00, 2022-10-12, 油车
+     <==      Total: 1
+     
+     // 查询结果
+     car1 = Car(id=9, carNum=777777, brand=现代伊兰特, guidePrice=140000.0, produceTime=2022-10-12, carType=油车)
+     
+     
+     // 放到缓存中（一级缓存缓存SQL）
+     putObject   key = 1092708538:2426216153:com.ilovesshan.mapper.CarMapper.selectById:0:2147483647:select  
+     id, car_num, brand, guide_price, produce_time, car_type
+     from t_car where id = ?:9:development
+     // 放到缓存中（二级缓存缓存查询结果）
+     putObject   value = [Car(id=9, carNum=777777, brand=现代伊兰特, guidePrice=140000.0, produceTime=2022-10-12, carType=油车)]
+     
+     // 归还连接对象
+     Resetting autocommit to true on JDBC Connection [com.mysql.cj.jdbc.ConnectionImpl@71b3bc45]
+     Closing JDBC Connection [com.mysql.cj.jdbc.ConnectionImpl@71b3bc45]
+     Returned connection 1907604549 to pool.
+     
+     // 第二次查询，尝试从缓存取数据
+     getObject   key = 1092708538:2426216153:com.ilovesshan.mapper.CarMapper.selectById:0:2147483647:select  
+     id, car_num, brand, guide_price, produce_time, car_type
+     from t_car where id = ?:9:development
+     Cache Hit Ratio [com.ilovesshan.mapper.CarMapper]: 0.5
+     
+     car2 = Car(id=9, carNum=777777, brand=现代伊兰特, guidePrice=140000.0, produceTime=2022-10-12, carType=油车)
+     
+     Disconnected from the target VM, address: '127.0.0.1:64931', transport: 'socket'
+     Process finished with exit code 0
+     
+     ```
+
+
+
+## MyBatis 逆向工程
+
+### 正向工程和逆向工程区别
+
+1. 正向工程
+   + 先创建实体类，由框架负责根据实体类生成数据库表。
+2. 逆向工程
+   + 先创建数据库表，由框架负责根据数据库表，反向生成如下资源：
+     + Java实体类
+     + Mapper接口
+     + Mapper配置文件
+
+### 使用插件生成MyBatis 逆向工程
+
+```xml
+<!-- 控制Maven在构建过程中相关配置 -->
+<build>
+    <!-- 构建过程中用到的插件 -->
+    <plugins>
+        <!-- maven 编译插件 -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.8.1</version>
+            <configuration>
+                <source>17</source>
+                <target>17</target>
+            </configuration>
+        </plugin>
+
+        <!-- 具体插件，逆向工程的操作是以构建过程中插件形式出现的 -->
+        <plugin>
+            <groupId>org.mybatis.generator</groupId>
+            <artifactId>mybatis-generator-maven-plugin</artifactId>
+            <version>1.3.2</version>
+            <configuration>
+                <configurationFile>${basedir}/src/main/resources/generator-config.xml</configurationFile>
+                <overwrite>true</overwrite>
+                <verbose>true</verbose>
+            </configuration>
+            <!-- 插件的依赖 -->
+            <dependencies>
+                <!-- 逆向工程的核心依赖 -->
+                <dependency>
+                    <groupId>org.mybatis.generator</groupId>
+                    <artifactId>mybatis-generator-core</artifactId>
+                    <version>1.3.2</version>
+                </dependency>
+                <!-- MySQL驱动 -->
+                <dependency>
+                    <groupId>mysql</groupId>
+                    <artifactId>mysql-connector-java</artifactId>
+                    <version>8.0.30</version>
+                </dependency>
+            </dependencies>
+        </plugin>
+    </plugins>
+</build>
+```
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration
+        PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+        "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+<generatorConfiguration>
+    <!--
+        targetRuntime: 执行生成的逆向工程的版本
+        MyBatis3Simple: 生成基本的CRUD（清新简洁版）
+        MyBatis3: 生成带条件的CRUD（奢华尊享版）
+    -->
+    <context id="DB2Tables" targetRuntime="MyBatis3Simple">
+
+        <!--定义生成的java类的编码格式-->
+        <property name="javaFileEncoding" value="UTF-8"/>
+
+        <!--去掉注释-->
+        <commentGenerator>
+            <property name="suppressAllComments" value="true"/>
+        </commentGenerator>
+
+        <!-- 数据库的连接信息 -->
+        <jdbcConnection
+                        driverClass="com.mysql.cj.jdbc.Driver"
+                        connectionURL="jdbc:mysql://localhost:3306/powernode_mybatis"
+                        userId="root"
+                        password="123456">
+        </jdbcConnection>
+
+        <!-- javaBean的生成策略-->
+        <javaModelGenerator targetPackage="com.ilovesshan.pojo" targetProject=".\src\main\java">
+            <property name="enableSubPackages" value="true"/>
+            <property name="trimStrings" value="true"/>
+        </javaModelGenerator>
+
+        <!-- SQL映射文件的生成策略 -->
+        <sqlMapGenerator targetPackage="com.ilovesshan.mapper" targetProject=".\src\main\resources">
+            <property name="enableSubPackages" value="true"/>
+        </sqlMapGenerator>
+
+        <!-- Mapper接口的生成策略 -->
+        <javaClientGenerator type="XMLMAPPER" targetPackage="com.ilovesshan.mapper" targetProject=".\src\main\java">
+            <property name="enableSubPackages" value="true"/>
+        </javaClientGenerator>
+
+        <!-- 逆向分析的表 -->
+        <!-- tableName设置为*号，可以对应所有表，此时不写domainObjectName -->
+        <!-- domainObjectName属性指定生成出来的实体类的类名 -->
+        <table tableName="t_car" domainObjectName="Car"/>
+
+    </context>
+
+</generatorConfiguration>
+
+```
+
+
+
+## MyBatis 分页插件
+
+### Limit关键字
+
+1. select * from t_car limit x, y;
+
+   + x：起始索引
+   + y：查询条数
+
+2. select * from t_car limit 5，5；
+
+   + 此条SQL语句表示含义：从第6条开始取，取5条！
+
+3. select * from t_car limit 5 和 select * from t_car limit 0，5等价！！
+
+4. 前端传递的参数格式：uri?pageNum=1&pageSize=10，如何根据pageNum和pageSize动态计算起始索引呢？
+
+   + pageNum = 1， pageSize = 5 【select * from t_car  limit 0,  5】
+   + pageNum = 2， pageSize = 5 【select * from t_car  limit 5,  5】
+   + pageNum = 3， pageSize = 5 【select * from t_car  limit 10,  5】
+   + ....
+   + pageNum = x， pageSize = y【select * from t_car  limit (pageSize -1 ) * y,  y】
+
+5. 代码举例
+
+   ```java
+   public interface CarMapper {
+       List<Car> selectWithLimit(@Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
+   }
+   ```
+
+   ```xml
+   <mapper namespace="com.ilovesshan.mapper.CarMapper">
+       <select id="selectWithLimit" resultType="com.ilovesshan.pojo.Car">
+           select
+           	id, car_num, brand, guide_price, produce_time, car_type
+           from
+           	t_car
+           limit #{offset}, #{pageSize}
+       </select>
+   </mapper>
+   ```
+
+   ```java
+   @Test
+   public void testSelectList() {
+       int pageNum = 1, pageSize = 3;
+       int offset = (pageNum - 1) * pageSize;
+   
+       List<Car> carList = mapper.selectWithLimit(offset, pageSize);
+       for (Car car : carList) {
+           System.out.println(car);
+       }
+   }
+   
+   // ==>  Preparing: select id, car_num, brand, guide_price, produce_time, car_type from t_car limit ?, ?
+   // ==> Parameters: 0(Integer), 3(Integer)
+   ```
+
+   
+
+### PageHelper 插件
+
+1. 下载依赖，[PageHelper文档地址](https://github.com/pagehelper/Mybatis-PageHelper/blob/master/wikis/zh/HowToUse.md)
+
+   ```xml
+   <dependency>
+       <groupId>com.github.pagehelper</groupId>
+       <artifactId>pagehelper</artifactId>
+       <version>5.3.2</version>
+   </dependency>
+   
+   ```
+
+   
+
+2. 在 MyBatis 配置 xml 中配置拦截器插件
+
+   ```xml
+   <!--
+       plugins在配置文件中的位置必须符合要求，否则会报错，顺序如下:
+       properties?, settings?,
+       typeAliases?, typeHandlers?,
+       objectFactory?,objectWrapperFactory?,
+       plugins?,
+       environments?, databaseIdProvider?, mappers?
+   -->
+   <plugins>
+       <!-- com.github.pagehelper为PageHelper类所在包名 -->
+       <plugin interceptor="com.github.pagehelper.PageInterceptor">
+           <!-- 使用下面的方式配置参数，后面会有所有的参数介绍 -->
+           <property name="param1" value="value1"/>
+       </plugin>
+   </plugins>
+   ```
+
+   
+
+3. 编写Java代码
+
+   ```java
+   public interface CarMapper {
+       List<Car> selectList();
+   }
+   ```
+
+   ```xml
+   <select id="selectList" resultType="car">
+       select
+           id, car_num, brand, guide_price, produce_time, car_type
+       from
+       	t_car
+   </select>
+   ```
+
+   ```java
+   @Test
+   public void testSelectList() {
+       int pageNum = 2, pageSize = 3;
+   
+       // 开启分页功能需要在执行DQL语句之前
+       PageHelper.startPage(pageNum, pageSize);
+   
+       List<Car> carList = mapper.selectList();
+       for (Car car : carList) {
+           System.out.println(car);
+       }
+   }
+   
+   // ==>  Preparing: SELECT count(0) FROM t_car
+   // ==> Parameters:
+   // <==    Columns: count(0)
+   // <==        Row: 8
+   // <==      Total: 1
+   // ==>  Preparing: select id, car_num, brand, guide_price, produce_time, car_type from t_car LIMIT ?, ?
+   // ==> Parameters: 3(Long), 3(Integer)
+   // <==    Columns: id, car_num, brand, guide_price, produce_time, car_type
+   // <==        Row: 6, 999999, 本田凌度, 190000.00, 2022-05-23, 氢气车
+   // <==        Row: 8, 666666, 雪佛兰, 160000.00, 2019-05-12, 氢气车
+   // <==        Row: 9, 777777, 现代伊兰特, 140000.00, 2022-10-12, 燃油车
+   // <==      Total: 3
+   ```
+
+4. `PageInfo`的用法
+
+   ```java
+   List<Car> carList = mapper.selectList();
+   // 将查询结果直接放入
+   PageInfo<Car> carPageInfo = new PageInfo<>(carList, 2);
+   System.out.println("carPageInfo = " + carPageInfo);
+   
+   // PageInfo{pageNum=2, pageSize=3, size=3, startRow=4, endRow=6, total=8, pages=3, list=Page{count=true, pageNum=2, pageSize=3, startRow=3, endRow=6, total=8, pages=3, reasonable=false, pageSizeZero=false}[com.ilovesshan.pojo.Car@75b25825, com.ilovesshan.pojo.Car@18025ced, com.ilovesshan.pojo.Car@13cf7d52], prePage=1, nextPage=3, isFirstPage=false, isLastPage=false, hasPreviousPage=true, hasNextPage=true, navigatePages=2, navigateFirstPage=1, navigateLastPage=2, navigatepageNums=[1, 2]}
+   ```
+
+   
+
+## MyBatis 注解开发
+
+1. 摘自mybatis官网的一句话：使用注解来映射简单语句会使代码显得更加简洁，但对于稍微复杂一点的语句，Java 注解不仅力不从心，还会让本就复杂的 SQL 语句更加混乱不堪。 因此，如果你需要做一些很复杂的操作，最好用 XML 来映射语句。
+2. 总结就是：简单sql语句可以使用注解，复杂sql语句使用xml文件。
+
+### @Select
+
+```java
+@Select("select * from t_car where id = #{id}")
+Car selectById(Long id);
+
+@Select("select * from t_car")
+List<Car> selectList();
+```
+
+
+
+### @Update
+
+```java
+@Update("update t_car set car_num = #{carNum}, brand = #{brand}, guide_price = #{guidePrice}, produce_time = #{produceTime}, car_type = #{carType} where id = #{id}")
+int update(Car car);
+```
+
+
+
+### @Delete
+
+```java
+@Delete("delete from t_car where id = #{id}")
+int deleteById(Long id);
+```
+
+
+
+### @Insert
+
+```java
+@Insert("insert into t_car values(null, #{carNum}, #{brand}, #{guidePrice}, #{produceTime}, #{carType})")
+int insert(Car record);
+```
+
+
+
+### @ResultSet
+
+```java
+@Results({
+    @Result(property = "id", column = "id"),
+    @Result(property = "carNum", column = "car_num"),
+    @Result(property = "brand", column = "brand"),
+    @Result(property = "guidePrice", column = "guide_price"),
+    @Result(property = "produceTime", column = "produce_time"),
+    @Result(property = "carType", column = "car_type"),
+})
+@Select("select * from t_car where id = #{id}")
+Car selectById(Long id);
+```
+
+
+
+
+
+## 手写  MyBatis
