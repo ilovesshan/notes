@@ -3293,7 +3293,7 @@
      + [jakarta.servlet.jsp.jstl-2.0.0](https://repo1.maven.org/maven2/org/glassfish/web/jakarta.servlet.jsp.jstl/2.0.0/)
      + [jakarta.servlet.jsp.jstl-api-2.0.0](https://repo1.maven.org/maven2/jakarta/servlet/jsp/jstl/jakarta.servlet.jsp.jstl-api/2.0.0/)
    + Tomcat10.x -
-     + [javax.servlet.jsp.jstl-1.2.5](https://repo1.maven.org/maven2/org/glassfish/web/javax.servlet.jsp.jstl/1.2.5/)
+     + [javax.servlet.jsp.jstl-1.2.1](https://repo1.maven.org/maven2/javax/servlet/jsp/jstl/javax.servlet.jsp.jstl-api/1.2.1/)
      + [taglibs-standard-1.2.5](https://repo1.maven.org/maven2/org/apache/taglibs/taglibs-standard/1.2.5/)
 
 2. 在WEB-INF文件夹下新建 lib，将jar包复制到lib目录下，然后选中jar包执行 Add as Libary...操作就ok了
