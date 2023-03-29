@@ -4688,15 +4688,1791 @@ public void testBatchDelete() {
 ### JDK代理和CGLIB代理区别
 
 1. JDK代理
-
    + JDK代理只能通过实现接口方式生成代理对象
    + 底层是基于实现接口的方式
-
 2. CGLIB代理
-
    + 不仅能通过实现接口方式生成代理对象还能通过继承类的方式生成代理对象
    + 底层是基于继承的方式
-   + 底层还使用了ASM字节码操作技术
+   + 底层使用了ASM字节码操作技术
+
+
+
+## Spring AOP
+
+###  AOP 概念
+
+1. AOP（Aspect Oriented Programming）， 面向“切面”编程，AOP是一种技术。
+
+2. 什么是切面？什么是面向切面编程？
+
+   + 切面：把一些公共的、通用的非业务代码抽离出来，封装成一个组件，这个组件就可以叫做一个切面。
+   + 面向切面编程：把这些组件通过横向的方式织入到纵向的业务代码中，这一织入的过程就可以叫做面向切面编程。
+
+3. 常见的交叉业务
+
+   + 交叉业务就是非业务代码，比如：事务管理、日志记录、安全校验等等，这些模块基本上每个系统都会用到。
+   + 其实既然很多系统都要用到这些非业务代码，显而易见这些非业务代码中的代码都是大同小异的，那为什么不抽取成一个切面呢？
+
+4. AOP是对OOP的扩展，AOP底层使用的是动态代理技术。
+
+5. Spring中的 AOP。
+
+   + Spring中的 AOP底层是使用 JDK动态代理 + CGLIB动态代理实现的，如果目标对象有实现接口，那么Spring会采用JDK动态代理，如果目标对象没有实现接口那么Spring底层会自动切换成CGLIB动态代理。
+   + 也可以通过配置的方式来确定要使用JDK动态代理 还是  CGLIB动态代理。
 
    
 
+   ![image-20230327165443800](../../.vuepress/public/image-20230327165443800.png)
+
+
+
+### AOP 七大术语
+
+1. 连接点 JiontPoint
+
+   + 在程序流程执行过程中，切面可以织入的位置，方法执行前后，异常抛出之后等位置。
+
+2. 切点 PointCut
+
+   + 在程序流程执行过程中，真正织入的切面方法（一个切点对应多个连接点）。
+
+3. 通知 Advice
+
+   具体要执行的增强的代码
+
+   + 前置通知
+   + 后置通知
+   + 环绕通知
+   + 异常通知
+   + 最终通知
+
+4. 切面 Aspect
+
+   + 切点 + 通知 构成一个切面。
+
+5. 织入 Weaving
+
+   + 把通知应用到目标对象的过程。
+
+6. 代理对象 Proxy
+
+   + 一个目标被织入通知之后产生的新对象。
+
+7. 目标对象 Target
+
+   + 被织入通知的对象。
+
+### 切入点表达式
+
+1. 切入点表达式是定位一个或多个具体的连接点。
+2. 切入点表达式语法：
+
+   + pointCut("execution(\*..\*.*(..))")
+
+   + [方法修饰符] 返回值 全限定包名 类名.方法名称 (参数列表) [异常]
+     + 方法修饰符： 可以省略，省略就默认是四个访问修饰符。
+     + 返回值：可以使用 * 来代替任意返回值
+     + 全限定包名：使用 * 表示任意包，使用*..表示当前包及其子包
+     + 类名.方法名称：类名和方法名称都可以使用 * 作为通配符
+     + 参数列表：* 表示一个任意类型的参数，.. 表示任意个任意类型参数
+     + 异常：可以省略不写
+3. 开发中常见的切入点表达式写法
+
+   + execution(* com.ilovesshan.oa.service.Impl.\*.*(..))
+
+
+
+### Spring AOP
+
+1. Spring中AOP一共有三种方式实现
+   + Spring + AspectJ 框架（注解方式）
+   + Spring + AspectJ 框架（XML配置方式）
+   + Spring 内置API实现 AOP
+2. AspectJ 框架
+   + AspectJ 是一个基于 Java 语言的 AOP 框架。在 Spring 2.0 以后，新增了对 AspectJ 框架的支持。在 Spring 框架中建议使用 AspectJ 框架开发 AOP
+   + AspectJ 框架中的通知类型
+     + 前置通知（before），在调用目标方法之前执行。
+     + 后置通知（afterReturing），在调用目标方法之后执行。
+     + 环绕通知（around），在调用目标方法之前和之后执行。
+     + 最终通知（after），无论程序发生什么，都会执行。
+     + 异常通知（afterThrowing），程序发生异常时执行。
+
+### Spring + AspectJ 注解方式实现AOP
+
+1. 实现步骤
+
+   + 添加依赖
+
+     ```xml
+     <dependencies>
+         <!-- Spring 核心依赖-->
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-context</artifactId>
+             <version>6.0.4</version>
+         </dependency>
+     
+         <!-- Spring AOP依赖(不用手动引入)-->
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-aop</artifactId>
+             <version>6.0.4</version>
+         </dependency>
+     
+         <!-- Spring aspects 切面支持-->
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-aspects</artifactId>
+             <version>6.0.4</version>
+         </dependency>
+     </dependencies>
+     ```
+
+     
+
+   + 定义业务类
+
+     ```java
+     @Service
+     public class UserService {
+         public void login() {
+             System.out.println("UserService login...");
+         }
+     }
+     ```
+
+     
+
+   + 定义切面
+
+     ```java
+     @Aspect
+     @Component
+     public class LogAspect {
+     
+         // @Before 前后通知、目标方法执行前执行.
+         // "execution()" 定义切入点
+         @Before("execution(* com.ilovesshan.service.*.*(..))")
+         public void beforeAdvice() {
+             System.out.println("LogAspect before...");
+         }
+     }
+     ```
+
+     
+
+   + 配置xml文件
+
+     ```xml
+     <context:component-scan base-package="com.ilovesshan.service"/>
+     
+     <!--
+             开启自动代理(不开启就不能生成代理类)
+             开启了该配置之后，当扫描到该类被@Aspect注解修饰时，底层就会为该类生成一个代理对象。
+             proxy-target-class="true"
+                     强制使用CGLIB进行动态代理
+             proxy-target-class="false"
+                     默认值就是false, 根据目标对象是否实现了接口来决定使用JDK动态代理还是CGLIB动态代理
+         -->
+     <aop:aspectj-autoproxy proxy-target-class="true"/>
+     ```
+
+     
+
+   + 单元测试
+
+     ```java
+     @RunWith(JUnit4.class)
+     public class AspectJTest {
+     
+         @Test
+         public void beforeTest() {
+             ClassPathXmlApplicationContext app = new ClassPathXmlApplicationContext("spring.xml");
+     
+             UserService userService = app.getBean("userService", UserService.class);
+             userService.login();
+         }
+     }
+     ```
+
+2. 五种通知类型
+
+   + 前置通知（before）
+
+     ```java
+     @Before("execution(* com.ilovesshan.service.*.*(..))")
+     public void beforeAdvice() {
+         System.out.println("LogAspect Before...");
+     }
+     ```
+
+     
+
+   + 环绕通知（around）
+
+     ```java
+     @AfterReturning("execution(* com.ilovesshan.service.*.*(..))")
+     public void afterReturningAdvice() {
+         System.out.println("LogAspect AfterReturning...");
+     }
+     ```
+
+     
+
+   + 后置通知（afterRerutning）
+
+     ```java
+     @Around("execution(* com.ilovesshan.service.*.*(..))")
+     public Object aroundAdvice(ProceedingJoinPoint joinPoint) throws Throwable {
+         System.out.println("LogAspect Around Before...");
+         // 调用目标方法
+         // joinPoint.getArgs() 目标方法的参数
+         // proceed 目标方法的返回值
+         Object proceed = joinPoint.proceed(joinPoint.getArgs());
+         System.out.println("LogAspect Around After...");
+         return proceed;
+     }
+     ```
+
+     
+
+   + 异常通知（afterThrowing）
+
+     ```java
+     @After("execution(* com.ilovesshan.service.*.*(..))")
+     public void afterAdvice() throws Throwable {
+         System.out.println("LogAspect After...");
+     }
+     ```
+
+     
+
+   + 最终通知（after）
+
+     ```java
+     @AfterThrowing("execution(* com.ilovesshan.service.*.*(..))")
+     public void afterThrowingAdvice() throws Throwable {
+         System.out.println("LogAspect AfterThrowing...");
+     }
+     ```
+
+     
+
+3. 代码复用定义切入点
+
+   + 上面代码有个缺点就是每个切入点表达式中的表达式都是一模一样，能不能抽取一下呢？不用重复写很多次？当然可以
+
+   + 定义切入点表达式
+
+     ```java
+     // 这就是一个空方法，方法名称随意，里面不用写任何代码。
+     @Pointcut("execution(* com.ilovesshan.service.*.*(..))")
+     public void logPointCut(){}
+     ```
+
+   + 使用切入点表达式
+
+     ```java
+     @Before("logPointCut()")
+     public void beforeAdvice(){}
+     
+     @AfterReturning("logPointCut()")
+     public void afterReturningAdvice(){}
+     
+     @Around("logPointCut()")
+     public void aroundAdvice(ProceedingJoinPoint joinPoint){}
+     
+     @After("logPointCut()")
+     public void afterAdvice(){}
+     
+     @AfterThrowing("logPointCut()")
+     public void afterThrowingAdvice(){}
+     ```
+
+4. 多个切面执行顺序
+
+   + 通过@Order(value)来控制多个切面执行的先后顺序，value值越小越先执行。
+
+     ```java
+     @Aspect
+     @Component
+     @Order(2)
+     public class SecurityAspect {}
+     ```
+
+     ```java
+     @Aspect
+     @Component
+     @Order(1)
+     public class LogAspect {}
+     ```
+
+   + LogAspect 切面执行时机 优先于 SecurityAspect切面，因为 1 比 2 小。
+
+     
+
+5. 通知方法的参数（连接点）
+
+   + 连接点是，切面可以织入的位置（方法执行前后、异常抛出之后等等）
+
+   + 被@Around环绕通知注解修饰的方法，有一个参数 ProceedingJoinPoint。
+
+     ```java
+     @Around("logPointCut()")
+     public Object aroundAdvice(ProceedingJoinPoint joinPoint) throws Throwable {
+         // 调用目标方法
+         // joinPoint.getArgs() 目标方法的参数
+         // proceed 目标方法的返回值
+         Object proceed = joinPoint.proceed(joinPoint.getArgs());
+     }
+     ```
+
+   + 前置通知、后置通知、最终通知、异常通知都有一个 JoinPoint 参数。
+
+     ```java
+     @Before("logPointCut()")
+     public void beforeAdvice(JoinPoint joinPoint) {
+         // JoinPoint  有几个常用的方法
+         Signature signature = joinPoint.getSignature(); // 获取目标方法的方法签名
+         Object[] args = joinPoint.getArgs();  // 获取目标方法的形参列表
+         Object target = joinPoint.getTarget();  // 获取代理对象
+     }
+     ```
+
+     
+
+### Spring + AspectJ XML方式实现AOP
+
+```java
+public class LogAspect {
+    public void beforeAdvice(JoinPoint joinPoint) {
+        System.out.println("LogAspect(日志) Before...");
+    }
+
+    public void afterReturningAdvice() {
+        System.out.println("LogAspect(日志) AfterReturning...");
+    }
+
+    public Object aroundAdvice(ProceedingJoinPoint joinPoint) throws Throwable {
+        System.out.println("LogAspect(日志) Around Before...");
+        Object proceed = joinPoint.proceed(joinPoint.getArgs());
+        System.out.println("LogAspect(日志) Around After...");
+        return proceed;
+    }
+
+    public void afterAdvice() throws Throwable {
+        System.out.println("LogAspect(日志) After...");
+    }
+
+    public void afterThrowingAdvice() throws Throwable {
+        System.out.println("LogAspect(日志) AfterThrowing...");
+    }
+}
+```
+
+
+
+```xml
+<bean id="userService" class="com.ilovesshan.service.UserService"/>
+<bean id="logAspect" class="com.ilovesshan.service.LogAspect"/>
+
+<aop:aspectj-autoproxy />
+
+<aop:config>
+    <!-- 定义切入点表达式-->
+    <aop:pointcut id="logPointCut" expression="execution(* com.ilovesshan.service..*(..))"/>
+    <aop:aspect ref="logAspect">
+        <!-- 定义前置通知 -->
+        <aop:before method="beforeAdvice" pointcut-ref="logPointCut"/>
+        <!-- 定义最终置通知 -->
+        <aop:after method="afterAdvice" pointcut-ref="logPointCut"/>
+        <!-- 定义后置通知 -->
+        <aop:after-returning method="afterReturningAdvice" pointcut-ref="logPointCut"/>
+        <!-- 定义异常通知 -->
+        <aop:after-throwing method="afterThrowingAdvice" pointcut-ref="logPointCut"/>
+        <!-- 定义环绕通知 -->
+        <aop:around method="aroundAdvice" pointcut-ref="logPointCut"/>
+    </aop:aspect>
+</aop:config>
+```
+
+
+
+### Spring + AspectJ 纯注解实现AOP
+
+```java
+@Configuration
+@ComponentScan(basePackages = {"com.ilovesshan.service"})
+@EnableAspectJAutoProxy
+public class Application {
+}
+```
+
+```java
+@Test
+public void noXmlTest() {
+    AnnotationConfigApplicationContext app = new AnnotationConfigApplicationContext(Application.class);
+    UserService userService = app.getBean("userService", UserService.class);
+    userService.login();
+}
+```
+
+
+
+### AOP实际应用 - 事务管理
+
+```java
+@Service
+public class AccountService {
+    public void transfer() {
+        System.out.println("账户交易中....");
+    }
+}
+```
+
+```java
+@Service
+public class OrderService {
+
+    public void createOrder() {
+        System.out.println("订单创建中....");
+        if (Math.random() > 0.1) {
+            throw new RuntimeException("订单创建发生异常...");
+        }
+    }
+}
+```
+
+```java
+@Aspect
+@Component
+public class TransactionAspect {
+    @Pointcut("execution(* com.ilovesshan.service..*(..))")
+    public void pointCount() {
+    }
+
+    @Around("pointCount()")
+    public Object aroundAdvice(ProceedingJoinPoint joinPoint) {
+        Object proceed = null;
+        System.out.println("开启事务");
+        try {
+            proceed = joinPoint.proceed(joinPoint.getArgs());
+            System.out.println("提交事务");
+        } catch (Throwable e) {
+            System.out.println("回滚事务");
+        }
+        return proceed;
+    }
+}
+```
+
+
+
+### AOP实际应用 - 日志记录
+
+```java
+@Service
+public class StudentService {
+    public void addStudent() {
+        System.out.println("addStudent...");
+    }
+
+    public void deleteStudent() {
+        System.out.println("deleteStudent...");
+    }
+
+    public void updateStudent() {
+        System.out.println("updateStudent...");
+    }
+
+    public void selectStudent() {
+        System.out.println("selectStudent...");
+    }
+}
+
+```
+
+```java
+@Service
+public class UserService {
+    public void addUser() {
+        System.out.println("addUser...");
+    }
+
+    public void deleteUser() {
+        System.out.println("deleteUser...");
+    }
+
+    public void updateUser() {
+        System.out.println("updateUser...");
+    }
+
+    public void selectUser() {
+        System.out.println("selectUser...");
+    }
+}
+```
+
+```java
+@Aspect
+@Component
+public class LogAspect {
+
+    // 新增操作
+    @Pointcut("execution(* com.ilovesshan.service..add*(..))")
+    public void addPointCount() {
+    }
+
+    // 删除操作
+    @Pointcut("execution(* com.ilovesshan.service..delete*(..))")
+    public void deletePointCount() {
+    }
+
+    // 更新操作
+    @Pointcut("execution(* com.ilovesshan.service..update*(..))")
+    public void updatePointCount() {
+    }
+
+    @Before("addPointCount() || deletePointCount() || updatePointCount()")
+    public void aroundAdvice(JoinPoint joinPoint) {
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss SSS");
+        String format = simpleDateFormat.format(new Date());
+        String s = joinPoint.getSignature().getDeclaringTypeName() + "." + joinPoint.getSignature().getName();
+        System.out.println(format + ", ilovesshan 操作接口" + s);
+    }
+}
+```
+
+
+
+
+
+## Spring 事务管理
+
+### 什么是事务
+
+1. 事务的概念
+   + 当执行一组DML（update insert delete）语句时，这一组语句要么全部成功要么全部失败！
+2. 事务的使用步骤
+   + 开启事务
+   + 执行业务代码
+   + 提交事务（业务代码中没有发生异常）
+   + 回滚事务（业务代码中发生了异常）
+3. 事务的四大特性
+   + A 原子性（将一组DML操作视为一个原子，原子具有不可再分的概念）
+   + C 一致性（执行一组DML语句要么全部成功要么全部失败）
+   + I 隔离性（多个事务同时操作数据库的时候，事务和事务之间应该隔离开）
+   + D 持久性（持久性的标志是事务的提交）
+
+### 事务引出
+
+1. 使用MCV架构模式，完成银行转账的案例进而引出事务！
+
+2. 引入依赖，和数据库脚本。
+
+   + 数据库脚本
+
+     + 数据库脚本使用的是[javaweb mvc架构模式章节](https://ilovesshan.github.io/pages/backend/javaWeb.html#%E6%95%B0%E6%8D%AE%E5%BA%93%E8%84%9A%E6%9C%AC)用到的数据库。
+
+   + pom依赖
+
+     ```xml
+     <dependencies>
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-context</artifactId>
+             <version>6.0.4</version>
+         </dependency>
+     
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-jdbc</artifactId>
+             <version>5.3.23</version>
+         </dependency>
+     
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-tx</artifactId>
+             <version>5.3.23</version>
+         </dependency>
+     
+         <dependency>
+             <groupId>jakarta.annotation</groupId>
+             <artifactId>jakarta.annotation-api</artifactId>
+             <version>2.1.1</version>
+         </dependency>
+     
+         <dependency>
+             <groupId>mysql</groupId>
+             <artifactId>mysql-connector-java</artifactId>
+             <version>8.0.31</version>
+         </dependency>
+     
+         <dependency>
+             <groupId>com.alibaba</groupId>
+             <artifactId>druid</artifactId>
+             <version>1.2.13</version>
+         </dependency>
+     
+         <dependency>
+             <groupId>ch.qos.logback</groupId>
+             <artifactId>logback-classic</artifactId>
+             <version>1.2.11</version>
+         </dependency>
+     
+         <dependency>
+             <groupId>org.projectlombok</groupId>
+             <artifactId>lombok</artifactId>
+             <version>1.18.24</version>
+         </dependency>
+     
+         <dependency>
+             <groupId>junit</groupId>
+             <artifactId>junit</artifactId>
+             <version>4.13.2</version>
+             <scope>test</scope>
+         </dependency>
+     </dependencies>
+     ```
+
+     
+
+3. 配置文件 spring.xml
+
+   ```xml
+   <context:component-scan base-package="com.ilovesshan"/>
+   <!-- 引入外部配置文件-->
+   <context:property-placeholder location="jdbc.properties"/>
+   
+   <!-- 配置JdbcTemplate模板-->
+   <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+       <property name="dataSource" ref="ds"/>
+   </bean>
+   
+   <!-- 配置德鲁伊数据源-->
+   <bean id="ds" class="com.alibaba.druid.pool.DruidDataSource">
+       <property name="driverClassName" value="${jdbc.driver}"/>
+       <property name="url" value="${jdbc.url}"/>
+       <property name="username" value="${jdbc.username}"/>
+       <property name="password" value="${jdbc.password}"/>
+   </bean>
+   ```
+
+   
+
+4. 搭建项目基本结构，Controller层(单元测试)、Service层、Dao层、Pojo层
+
+   + Service层
+
+     ```java
+     public interface AccountService {
+         void transfer(String fromAccount, String toAccount, double money);
+     }
+     ```
+
+     ```java
+     @Service("accountService")
+     public class AccountServiceImpl implements AccountService {
+     
+         @Resource
+         private AccountDao accountDao;
+     
+         @Override
+         public void transfer(String fromAccount, String toAccount, double money) {
+             Account selectFromAccount = accountDao.selectByUsername(fromAccount);
+     
+             if (selectFromAccount.getAccount() < money) {
+                 throw new RuntimeException("余额不足~");
+             }
+     
+             Account selectToAccount = accountDao.selectByUsername(toAccount);
+     
+             selectFromAccount.setAccount(selectFromAccount.getAccount() - money);
+             selectToAccount.setAccount(selectToAccount.getAccount() + money);
+     
+             int affectRows = accountDao.update(selectFromAccount);
+     
+             // 模拟异常
+             String s = null;
+             s.toString();
+     
+             affectRows += accountDao.update(selectToAccount);
+     
+             if (affectRows != 2) {
+                 throw new RuntimeException("转账失败，未知问题~");
+             }
+         }
+     }
+     ```
+
+     
+
+   + Dao层
+
+     ```java
+     public interface AccountDao {
+         Account selectByUsername(String username);
+         int update(Account account);
+     }
+     ```
+
+     ```java
+     @Repository
+     public class AccountDaoImpl implements AccountDao {
+     
+         @Resource
+         private JdbcTemplate jdbcTemplate;
+     
+         @Override
+         public Account selectByUsername(String username) {
+             String sql = "select id, username, account from account where username like ?";
+             return jdbcTemplate.queryForObject(sql, new BeanPropertyRowMapper<>(Account.class), username);
+         }
+     
+         @Override
+         public int update(Account account) {
+             String sql = "update account set account = ? where username like ?";
+             return jdbcTemplate.update(sql, account.getAccount(), account.getUsername());
+         }
+     }
+     ```
+
+     
+
+   + Pojo层
+
+     ```java
+     @Data
+     @NoArgsConstructor
+     @AllArgsConstructor
+     public class Account {
+         private Integer id;
+         private String username;
+         private Double account;
+     }
+
+   + Controller层(单元测试)
+
+     ```java
+     @RunWith(JUnit4.class)
+     public class TxTest {
+         @Test
+         public void testTx() {
+             ApplicationContext app = new ClassPathXmlApplicationContext("spring.xml");
+             AccountService accountService = app.getBean("accountService", AccountService.class);
+     
+             try {
+                 accountService.transfer("ilovesshan", "admin", 100);
+                 System.out.println("转账成功");
+             } catch (Exception e) {
+                 e.printStackTrace();
+             }
+         }
+     }
+     ```
+
+5. 总结
+
+   + 上诉代码中如果正常流程执行(不发生异常)是ok了，但是发生了异常就完蛋了！！！
+   + 下面 通过Spring 事务管理来解决这种问题。
+
+
+
+### Spring 事务管理
+
+1. Spring 事务管理可以分成两种方式
+   + 声明式事务（掌握）
+     + 通过注解方式实现
+     + 通过配置文件方式实现
+   + 编程式事务
+     + 通过编写事务代码实现
+
+
+
+### Spring 事务管理器
+
+1. Spring 事务管理器
+
+   + 在 Spring 框架中提供了多种事务管理器来进行事务管理。Spring 的事务管理器是基于AOP 实现的。在 Spring 的事务管理器中包含了配置事务传播行为、隔离级别、只读和超时属性，这些属性提供了事务应用的方法和描述策略。
+
+   + 在 Java EE 项目开发经常会使用分层模式，Spring 的事务处理位于业务逻辑层，它提供了针对事务的解决方案。
+
+     
+
+2. Spring 中包含的事务管理器
+
+   + org.springframework.jdbc.datasourc.DataSourceTransactionManager
+     + 针对于JDBC技术提供的事务管理器，适用于JDBC、MyBatis。
+   + org.springframework.orm.hibernate3.HibernateTransactionManager
+     + 针对于Hibernate框架提供的事务管理器，适用于Hibernate框架。
+   + org.springframework.orm.jpa.JpaTransactionManager
+     + 针对于JPA技术提供的事务管理器，适用于JPA技术。
+   + org.springframework.transaction.jta.JtaTransactionManager
+     + 跨越多个事务管理源，适合在多个数据源中实现事务控制。
+
+
+
+### Spring 注解方式实现事务管理 
+
+1. 解决银行转账案例中发生的异常问题。
+
+2. 在spring.xml中 配置事务管理（注意添加命名空间）
+
+   ```xml
+   <!-- 配置事务管理器-->
+   <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+       <property name="dataSource" ref="ds"/>
+   </bean>
+   
+   <!-- 采用声明式事务 -->
+   <tx:annotation-driven/>
+   ```
+
+   
+
+3. 在Service层的AccountServiceImpl类中 使用事务注解
+
+   + @Transactional 注解可可以用在类上和方法上
+     + 类上：类中全部方法执行时都开启事务
+     + 方法上：当前方法执行时开启事务
+
+   ```java
+   @Service("accountService")
+   @Transactional
+   public class AccountServiceImpl implements AccountService {
+   
+       @Resource
+       private AccountDao accountDao;
+   
+       @Override
+       public void transfer(String fromAccount, String toAccount, double money) {}
+   }
+   ```
+
+   
+
+### Spring 事务传播特性
+
+1. 先看@Transaction注解源码
+
+   ```java
+   
+   // @Transactional 注解可用于类和方法上面
+   @Target({ElementType.TYPE, ElementType.METHOD})
+   @Retention(RetentionPolicy.RUNTIME)
+   @Inherited
+   @Documented
+   public @interface Transactional {
+       @AliasFor("transactionManager")
+       String value() default "";
+   
+       @AliasFor("value")
+       String transactionManager() default "";
+   
+       String[] label() default {};
+   
+       // 事务传播特性 默认 Propagation.REQUIRED
+       Propagation propagation() default Propagation.REQUIRED;
+   
+       // 事务隔离级别  默认 Isolation.DEFAULT
+       Isolation isolation() default Isolation.DEFAULT;
+   
+       // 超时时间
+       int timeout() default -1;
+   
+       String timeoutString() default "";
+   
+       // 是否是只读事务
+       boolean readOnly() default false;
+   
+       // 遇到什么异常会进行回滚
+       Class<? extends Throwable>[] rollbackFor() default {};
+   
+       String[] rollbackForClassName() default {};
+   
+       // 遇到什么异常不会进行回滚
+       Class<? extends Throwable>[] noRollbackFor() default {};
+   
+       String[] noRollbackForClassName() default {};
+   }
+   ```
+
+   
+
+2. Propagation 对象是一个枚举类，类中一共有7个属性，分别代表着不同的含义。
+
+   + REQUIRED：支持当前事务，如果不存在则创建一个新事务。
+     + 既受外层调用者影响，也会影响外层事务。
+   + REQUIRES_NEW：创建一个新事务，如果存在当前事务，则挂起当前事务。
+     + 不受外层调用者影响，但会影响外层事务。
+   + SUPPORTS：支持当前事务，如果不存在则以非事务方式执行。
+   + MANDATORY：支持当前事务，如果不存在则抛出异常。
+     + 异常日志： No existing transaction found for transaction marked with propagation 'mandatory'
+   + NOT_SUPPORTED：以非事务方式执行，如果存在当前事务，则暂停当前事务。
+     + 不受外层调用者影响，但是会影响外层调用者。
+   + NEVER：以非事务方式执行，如果存在事务则抛出异常。
+     + 异常日志：Existing transaction found for transaction marked with propagation 'never'
+   + NESTED：如果当前事务存在，则在嵌套事务中执行，否则表现为REQUIRED。
+
+   ```java
+   public enum Propagation {
+       REQUIRED(0),
+       SUPPORTS(1),
+       MANDATORY(2),
+       REQUIRES_NEW(3),
+       NOT_SUPPORTED(4),
+       NEVER(5),
+       NESTED(6);
+   
+       private final int value;
+   
+       private Propagation(int value) {
+           this.value = value;
+       }
+   
+       public int value() {
+           return this.value;
+       }
+   }
+   ```
+
+
+
+### Spring 事务隔离界级别
+
+1. 什么是事务隔离界级别?
+
+   + 事务隔离级别就像教室和教室之间的隔墙一样，隔墙越厚就表示事务隔离级别越高。
+   + 事务隔离主要是防止在线程并发操作表情况下而应用的。
+
+2. 事务隔离界别中，三大“读”问题？
+
+   + 读未提交/脏读（一个事务读取另一个事务未提交的数据）
+   + 不可重复读（一个事务范围内两个相同的查询却返回了不同数据，重点在于UPDATE或DELETE）
+   + 幻读（一个事务范围内两个相同的查询却返回了不同数据，重点在于INSERT）
+
+3. 事务隔离级别分为哪几种？
+
+   + 读未提交（READ UNCOMMITTED ）
+   + 读已提交（READ COMMITTED）
+   + 可重复读（REPEATABLE READ）
+   + 序列化（SERIALIZABLE）
+
+   |          | 脏读 | 不可重复读 | 幻读 |
+   | -------- | ---- | ---------- | ---- |
+   | 读未提交 | ×    | ×          | ×    |
+   | 读已提交 | √    | ×          | ×    |
+   | 可重复读 | √    | √          | ×    |
+   | 序列化   | √    | √          | √    |
+
+   
+
+4. Mysql默认事务隔离级别？
+
+   + 读已提交（READ COMMITTED）
+
+5. Oracle默认事务隔离级别？
+
+   + 可重复读（REPEATABLE READ）
+
+6. Spring中通过代码设置事务隔离级别
+
+   ```java
+   public enum Isolation {
+       // 默认
+       DEFAULT(TransactionDefinition.ISOLATION_DEFAULT),
+       // 读未提交
+       READ_UNCOMMITTED(TransactionDefinition.ISOLATION_READ_UNCOMMITTED),
+       // 读已提交
+       READ_COMMITTED(TransactionDefinition.ISOLATION_READ_COMMITTED),
+       // 可重复读
+       REPEATABLE_READ(TransactionDefinition.ISOLATION_REPEATABLE_READ),
+       // 序列化
+       SERIALIZABLE(TransactionDefinition.ISOLATION_SERIALIZABLE);
+   
+       private final int value;
+       Isolation(int value) {
+           this.value = value;
+       }
+   
+       public int value() {
+           return this.value;
+       }
+   }
+   ```
+
+   
+
+### Spring  事务超时
+
+1. 超时时间是说一个事务允许执行的最长时间，如果超过该时间限制但事务还没有完成，则自动回滚事务。
+
+   ```java
+   @Transactional(timeout = 10)
+   ```
+
+2. 超时时间是指：事务开始时间 + 最后一个Statement执行结束的时间。
+
+3. 看一段代码
+
+   + 会报错：事务超时
+
+     ```java
+     @Transactional(timeout = 10)
+     public class AccountService {
+         @Resource
+         private AccountDao accountDao;
+     
+         public void insert(Account account) {
+             try {
+                 // 睡眠 20s
+                 Thread.sleep(20000);
+             } catch (InterruptedException e) {
+                 e.printStackTrace();
+             }
+             accountDao.insert(account);
+         }
+     }
+     ```
+
+     
+
+   + 不会报错
+
+     ```java
+     @Transactional(timeout = 10)
+     public class AccountService {
+         @Resource
+         private AccountDao accountDao;
+     
+         public void insert(Account account) {
+             accountDao.insert(account);
+             try {
+                 // 睡眠 20s
+                 Thread.sleep(20000);
+             } catch (InterruptedException e) {
+                 e.printStackTrace();
+             }
+         }
+     }
+     ```
+
+     
+
+### Spring 只读事务
+
++ 只读事务一般设置在查询方法上，但不是所有的查询方法都需要只读事务，要看具体情况。
++ 一般来说，如果这个业务方法只有一个查询 SQL，那么就没必要添加事务，强行添加最终效果适得其反。
++ 但是如果一个业务方法中有多个查询 SQL，情况就不一样了：多个查询 SQL，默认情况下，每个查询 SQL 都会开启一个独立的事务，这样，如果有并发操作修改了数据，那么多个查询 SQL 就会查到不一样的数据。此时，如果我们开启事务，并设置为只读事务，那么多个查询 SQL 将被置于同一个事务中，多条相同的 SQL 在该事务中执行将会获取到相同的查询结果。
+
+```java
+@Transactional(readOnly = true)
+```
+
+
+
+### Spring 事务异常回滚
+
+1. 发生指定异常时进行事务回滚
+
+   + 发生RuntimeException异常时，事务回滚
+
+   ```java
+   @Transactional(rollbackFor = RuntimeException.class)
+   ```
+
+   
+
+2. 发生指定异常时不进行事务回滚
+
+   + 发生RuntimeException异常或者IOException异常时，事务不回滚
+
+   ```java
+   @Transactional(noRollbackFor = {RuntimeException.class, IOException.class})
+   ```
+
+   
+
+### Spring XML方式实现事务管理 
+
+1. 使用 XML方式实现事务管理，就是不在Service的实现类中使用 @Transaction注解了，也不在spring.xml中配置注解驱动了。
+
+   ```java
+   @Transactional()
+   ```
+
+   ```xml
+   <tx:annotation-driven/>
+   ```
+
+   
+
+2. 通过配置通知 + 切面方式来实现事务管理 
+
+   ```xml
+   <context:component-scan base-package="com.ilovesshan"/>
+   
+   <!-- 引入外部配置文件-->
+   <context:property-placeholder location="jdbc.properties"/>
+   
+   <!-- 配置德鲁伊数据源-->
+   <bean id="ds" class="com.alibaba.druid.pool.DruidDataSource">
+       <property name="driverClassName" value="${jdbc.driver}"/>
+       <property name="url" value="${jdbc.url}"/>
+       <property name="username" value="${jdbc.username}"/>
+       <property name="password" value="${jdbc.password}"/>
+   </bean>
+   
+   <!-- 配置JdbcTemplate模板-->
+   <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+       <property name="dataSource" ref="ds"/>
+   </bean>
+   
+   <!-- 配置事务管理器-->
+   <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+       <property name="dataSource" ref="ds"/>
+   </bean>
+   
+   <!-- 配置通知 -->
+   <tx:advice id="tx" transaction-manager="transactionManager">
+       <tx:attributes>
+           <!-- 可以配置属性, 就和在@Transaction()注解中写的属性一样-->
+           <tx:method name="transfer" propagation="REQUIRED" read-only="false" isolation="DEFAULT" timeout="-1"/>
+   
+           <!-- 使用通配符匹匹配方法名称(对方法取名有要求)-->
+           <tx:method name="select*" read-only="true"/>
+           <tx:method name="find*" read-only="true"/>
+           <tx:method name="insert"/>
+           <tx:method name="add*"/>
+           <tx:method name="delete*"/>
+           <tx:method name="remove*"/>
+           <tx:method name="update*"/>
+           <tx:method name="modify*"/>
+       </tx:attributes>
+   </tx:advice>
+   
+   <!-- 配置切面 (切面 = 切入点+通知) -->
+   <aop:config>
+       <aop:pointcut id="pt" expression="execution(* com.ilovesshan.service.impl..*(..))"/>
+       <aop:advisor advice-ref="tx" pointcut-ref="pt"/>
+   </aop:config>
+   
+   ```
+
+   
+
+### Spring 全注解式开发
+
+```java
+@Configuration
+@ComponentScan("com.ilovesshan")
+@EnableTransactionManagement
+@PropertySource(value = "classpath:jdbc.properties", ignoreResourceNotFound = false)
+public class TxApplication {
+
+    // 配置 德鲁伊数据源 
+    @Bean
+    public DataSource getDataSource(
+        @Value("${jdbc.driver}") String driverClassName,
+        @Value("${jdbc.url}") String url,
+        @Value("${jdbc.username}") String username,
+        @Value("${jdbc.password}") String password
+    ) {
+        DruidDataSource druidDataSource = new DruidDataSource();
+        druidDataSource.setDriverClassName(driverClassName);
+        druidDataSource.setUrl(url);
+        druidDataSource.setUsername(username);
+        druidDataSource.setPassword(password);
+        return druidDataSource;
+    }
+
+    // 配置 事务管理器
+    @Bean
+    public DataSourceTransactionManager getDataSourceTransactionManager(DataSource dataSource) {
+        DataSourceTransactionManager dataSourceTransactionManager = new DataSourceTransactionManager();
+        dataSourceTransactionManager.setDataSource(dataSource);
+        return dataSourceTransactionManager;
+    }
+
+    // 配置 JdbcTemplate
+    @Bean
+    public JdbcTemplate getJdbcTemplate(DataSource dataSource) {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate();
+        jdbcTemplate.setDataSource(dataSource);
+        return jdbcTemplate;
+    }
+}
+```
+
+
+
+
+
+## Spring 整合Junit
+
+### Junit 原始使用方式
+
+1. 添加依赖
+
+   ```xml
+   <dependencies>
+       <dependency>
+           <groupId>org.springframework</groupId>
+           <artifactId>spring-context</artifactId>
+           <version>6.0.4</version>
+       </dependency>
+   
+       <dependency>
+           <groupId>junit</groupId>
+           <artifactId>junit</artifactId>
+           <version>4.13.2</version>
+           <scope>test</scope>
+       </dependency>
+   </dependencies>
+   ```
+
+   
+
+2. 编写测试代码
+
+   ```java
+   public class User {
+   
+       private String username;
+   
+       public void setUsername(String username) {
+           this.username = username;
+       }
+   
+       @Override
+       public String toString() {
+           return "User{" +
+               "username='" + username + '\'' +
+               '}';
+       }
+   }
+   ```
+
+   ```xml
+   <bean id="user" class="com.ilovesshan.pojo.User">
+       <property name="username" value="ilovesshan"/>
+   </bean>
+   ```
+
+   ```java
+   @RunWith(JUnit4.class)
+   public class JunitTest {
+   
+       @Test
+       public void testJunit() {
+           ApplicationContext app = new ClassPathXmlApplicationContext("spring.xml");
+           User user = app.getBean("user", User.class);
+           System.out.println("user = " + user);
+       }
+   }
+   ```
+
+   
+
+### Spring 整合Junit4
+
+1. 添加依赖
+
+   ```xml
+   <dependencies>
+       <dependency>
+           <groupId>org.springframework</groupId>
+           <artifactId>spring-context</artifactId>
+           <version>6.0.4</version>
+       </dependency>
+   
+       <dependency>
+           <groupId>org.springframework</groupId>
+           <artifactId>spring-test</artifactId>
+           <version>6.0.4</version>
+       </dependency>
+   
+       <dependency>
+           <groupId>junit</groupId>
+           <artifactId>junit</artifactId>
+           <version>4.13.2</version>
+           <scope>test</scope>
+       </dependency>
+   </dependencies>
+   ```
+
+   
+
+2. 编写测试代码
+
+   ```java
+   @RunWith(SpringJUnit4ClassRunner.class)
+   @ContextConfiguration("classpath:spring.xml")
+   public class SpringJunit4Test {
+   
+       @Autowired
+       private User user;
+   
+       @Test
+       public void testJunit() {
+           System.out.println("user = " + user);
+       }
+   }
+   ```
+
+   
+
+### Spring 整合Junit5
+
+1. 添加依赖
+
+   ```xml
+   <dependencies>
+       <dependency>
+           <groupId>org.springframework</groupId>
+           <artifactId>spring-context</artifactId>
+           <version>6.0.4</version>
+       </dependency>
+   
+       <dependency>
+           <groupId>org.springframework</groupId>
+           <artifactId>spring-test</artifactId>
+           <version>6.0.4</version>
+       </dependency>
+   
+       <dependency>
+           <groupId>org.junit.jupiter</groupId>
+           <artifactId>junit-jupiter</artifactId>
+           <version>5.9.2</version>
+           <scope>test</scope>
+       </dependency>
+   </dependencies>
+   ```
+
+   
+
+2. 编写测试代码
+
+   ```java
+   @ExtendWith(SpringExtension.class)
+   @ContextConfiguration("classpath:spring.xml")
+   public class SpringJunit5Test {
+   
+       @Autowired
+       private User user;
+   
+       @Test
+       public void testJunit() {
+           System.out.println("user = " + user);
+       }
+   }
+   ```
+
+   
+
+## Spring 整合 Mybatis
+
+### 整合步骤
+
+1. 准备数据库表
+
+2. pom.xml中添加依赖
+
+3. 项目基本结构搭建和编码
+   + com.ilovesshan.pojo.Account（类）
+   
+   + com.ilovesshan.mapper.AccountMapper（接口）
+   
+   + com.ilovesshan.service.AccountService（接口）
+   
+   + com.ilovesshan.service..impl.AccountServiceImpl（实现类）
+   + com.ilovesshan.service.AccountController（类，转移到单元测试中）
+   
+4. 添加数据源信息配置文件
+   
+   + jdbc.properties
+   
+4. 添加mybatis核心配置文件
+   
+   + mybatis配置文件可以省略，spring整合mybatis之后，mybatis配置文件中大部分配置选项都转移到了spring配置文件中。
+   + mybatis配置文件如果省略了，那么关于mybatis部分系统设置将无法配置，就是\<settings> 标签中配置的信息。
+   
+6. 添加AccountMapper.xml映射文件
+
+6. 添加spring核心配置文件
+   + 配置 包扫描
+   + 配置 导入外部配置文件
+   + 配置 数据源
+   + 配置 SqlSessionFactoryBean
+     + 别名映射路径（包扫描）
+     + 数据源
+     + mybatis核心配置文件路径
+   + 配置mapper接口的扫描器
+   + 配置事务管理器
+   + 开启事务注解驱动
+   
+7. 添加测试代码
+
+
+
+### 实现步骤
+
+1. 准备数据库表
+
+2. pom.xml中添加依赖
+
+   ```xml
+   <dependencies>
+       <!-- spring核心依赖 -->
+       <dependency>
+           <groupId>org.springframework</groupId>
+           <artifactId>spring-context</artifactId>
+           <version>6.0.4</version>
+       </dependency>
+       <!-- spring切面支持依赖 -->
+       <dependency>
+           <groupId>org.springframework</groupId>
+           <artifactId>spring-aspects</artifactId>
+           <version>6.0.4</version>
+       </dependency>
+       <!-- spring支持jdbc依赖 -->
+       <dependency>
+           <groupId>org.springframework</groupId>
+           <artifactId>spring-jdbc</artifactId>
+           <version>5.3.23</version>
+       </dependency>
+       <!-- JDK注解 -->
+       <dependency>
+           <groupId>jakarta.annotation</groupId>
+           <artifactId>jakarta.annotation-api</artifactId>
+           <version>2.1.1</version>
+       </dependency>
+       <!-- spring事务支持依赖 -->
+       <dependency>
+           <groupId>org.springframework</groupId>
+           <artifactId>spring-tx</artifactId>
+           <version>5.3.23</version>
+       </dependency>
+       <!-- myBats依赖 -->
+       <dependency>
+           <groupId>org.mybatis</groupId>
+           <artifactId>mybatis</artifactId>
+           <version>3.5.10</version>
+       </dependency>
+       <!-- mybatis和spring整合依赖 -->
+       <dependency>
+           <groupId>org.mybatis</groupId>
+           <artifactId>mybatis-spring</artifactId>
+           <version>2.0.7</version>
+       </dependency>
+       <!-- 德鲁伊数据源依赖 -->
+       <dependency>
+           <groupId>com.alibaba</groupId>
+           <artifactId>druid</artifactId>
+           <version>1.2.13</version>
+       </dependency>
+       <!-- mysql驱动 -->
+       <dependency>
+           <groupId>mysql</groupId>
+           <artifactId>mysql-connector-java</artifactId>
+           <version>8.0.31</version>
+       </dependency>
+       <!-- lombok -->
+       <dependency>
+           <groupId>org.projectlombok</groupId>
+           <artifactId>lombok</artifactId>
+           <version>1.18.24</version>
+       </dependency>
+       <!-- junit单元测试 -->
+       <dependency>
+           <groupId>junit</groupId>
+           <artifactId>junit</artifactId>
+           <version>4.13.2</version>
+           <scope>test</scope>
+       </dependency>
+       <!-- logback日志依赖 -->
+       <dependency>
+           <groupId>ch.qos.logback</groupId>
+           <artifactId>logback-classic</artifactId>
+           <version>1.2.11</version>
+       </dependency>
+   </dependencies>
+   ```
+
+   
+
+3. 项目基本结构搭建和编码
+
+   + com.ilovesshan.pojo.Account（类）
+
+     ```java
+     @Data
+     @NoArgsConstructor
+     @AllArgsConstructor
+     public class Account {
+         private Integer id;
+         private String username;
+         private Double account;
+     }
+     ```
+
+   + com.ilovesshan.mapper.AccountMapper（接口）
+
+     ```java
+     @Mapper
+     public interface AccountMapper {
+         Account selectByUsername(String username);
+         int update(Account account);
+     }
+     ```
+
+   + com.ilovesshan.service.AccountService（接口）
+
+     ```java
+     public interface AccountService {
+         void transfer(String fromAccount, String toAccount, double money);
+     }
+     ```
+
+   + com.ilovesshan.service..impl.AccountServiceImpl（实现类）
+
+     ```java
+     @Service
+     public class AccountServiceImpl implements AccountService {
+         @Resource
+         private AccountMapper accountMapper;
+     
+         @Override
+         public void transfer(String fromAccount, String toAccount, double money) {
+             Account selectFromAccount = accountMapper.selectByUsername(fromAccount);
+     
+             if (selectFromAccount.getAccount() < money) {
+                 throw new RuntimeException("余额不足~");
+             }
+     
+             Account selectToAccount = accountMapper.selectByUsername(toAccount);
+     
+             selectFromAccount.setAccount(selectFromAccount.getAccount() - money);
+             selectToAccount.setAccount(selectToAccount.getAccount() + money);
+     
+             int affectRows = accountMapper.update(selectFromAccount);
+     
+             // 模拟异常
+             // String s = null;
+             // s.toString();
+     
+             affectRows += accountMapper.update(selectToAccount);
+     
+             if (affectRows != 2) {
+                 throw new RuntimeException("转账失败，未知问题~");
+             }
+         }
+     }
+     ```
+
+   + com.ilovesshan.service.AccountController（类，转移到单元测试中）
+
+     
+
+4. 添加数据源信息配置文件
+
+   ```properties
+   jdbc.driver=com.mysql.cj.jdbc.Driver
+   jdbc.url=jdbc:mysql://localhost:3306/powernode_mybatis
+   jdbc.username=root
+   jdbc.password=123456
+   ```
+
+5. 添加mybatis核心配置文件
+
+   ```xml
+   <?xml version="1.0" encoding="UTF-8" ?>
+   <!DOCTYPE configuration
+           PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+           "http://mybatis.org/dtd/mybatis-3-config.dtd">
+   <configuration>
+       <settings>
+           <setting name="logImpl" value="STDOUT_LOGGING"/>
+           <setting name="mapUnderscoreToCamelCase" value="true"/>
+       </settings>
+   </configuration>
+   ```
+
+6. 添加AccountMapper.xml映射文件
+
+   ```xml
+   <?xml version="1.0" encoding="UTF-8" ?>
+   <!DOCTYPE mapper
+           PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+           "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+   <mapper namespace="com.ilovesshan.mapper.AccountMapper">
+       <update id="update">
+           update account set account = #{account} where username like #{username};
+       </update>
+   
+       <select id="selectByUsername" resultType="com.ilovesshan.pojo.Account">
+           select * from account where username like #{username};
+       </select>
+   </mapper>
+   ```
+
+   
+
+7. 添加spring核心配置文件
+
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <beans xmlns="http://www.springframework.org/schema/beans"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns:context="http://www.springframework.org/schema/context"
+          xmlns:tx="http://www.springframework.org/schema/tx"
+          xsi:schemaLocation="
+                   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+                   http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd
+                   http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+   ">
+   
+   
+       <!-- 包扫描-->
+       <context:component-scan base-package="com.ilovesshan"/>
+   
+       <!-- 导入外部配置文件-->
+       <context:property-placeholder location="jdbc.properties"/>
+   
+       <!-- 开启事务注解驱动-->
+       <tx:annotation-driven/>
+   
+       <!-- 配置数据源-->
+       <bean id="ds" class="com.alibaba.druid.pool.DruidDataSource">
+           <property name="driverClassName" value="${jdbc.driver}"/>
+           <property name="url" value="${jdbc.url}"/>
+           <property name="password" value="${jdbc.password}"/>
+           <property name="username" value="${jdbc.username}"/>
+       </bean>
+   
+       <!-- 配置事务管理器-->
+       <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+           <property name="dataSource" ref="ds"/>
+       </bean>
+   
+       <!-- 配置SqlSessionFactoryBean-->
+       <bean class="org.mybatis.spring.SqlSessionFactoryBean">
+           <!-- 配置数据源 -->
+           <property name="dataSource" ref="ds"/>
+           <!-- 配置mybatis配置文件路径 -->
+           <property name="configLocation" value="mybatis-config.xml"/>
+           <!-- 配置别名包扫描路径 -->
+           <property name="typeAliasesPackage" value="com.ilovesshan.pojo"/>
+       </bean>
+   
+       <!-- 配置mapper接口的扫描器 -->
+       <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+           <property name="basePackage" value="com.ilovesshan.mapper"/>
+       </bean>
+   </beans>
+   
+   ```
+
+   
+
+8. 添加测试代码
+
+   ```java
+   @RunWith(JUnit4.class)
+   public class SMTest {
+       @Test
+       public void testSM() {
+           ApplicationContext app = new ClassPathXmlApplicationContext("spring.xml");
+           AccountService accountService = app.getBean("accountService", AccountService.class);
+           try {
+               accountService.transfer("ilovesshan", "admin", 100);
+               System.out.println("转账成功");
+           } catch (Exception e) {
+               e.printStackTrace();
+           }
+       }
+   }
+   ```
+
+   
+
+## Spring 框架中经典设计模式
+
+### 简单工厂（不属于G0F设计模式）
+
+1. 实现方式
+   + BeanFactory。Spring中的BeanFactory就是简单工厂模式的体现，根据传入一个唯一的标识来获得Bean对象，但是否是在传入参数后创建还是传入参数前创建这个要根据具体情况来定。
+2. 实质
+   + 由一个工厂类根据传入的参数，动态决定应该创建哪一个产品类。
+
+### 工厂方法设计模式
+
+1. 实现方式
+   + FactoryBean接口
+2. 实现原理
+   + 实现了FactoryBean接口的bean是一类叫做factory的bean。其特点是，spring会在使用getBean()调用获得该bean时，会自动调用该bean的getObject()方法，所以返回的不是factory这个bean，而是这个bean.getOjbect()方法的返回值。
+
+### 单例设计模式
+
+1. Spring依赖注入Bean实例默认是单例的。 
+
+### 适配器设计模式
+
+1. 实现方式
+   + SpringMVC中的适配器HandlerAdatper。
+2. 实现原理
+   + HandlerAdatper根据Handler规则执行不同的Handler。
+
+### 代理设计模式
+
+1. 实现方式
+   + AOP底层，就是动态代理模式的实现。
+2. 动态代理
+   + 在内存中构建的，不需要手动编写代理类
+3. 静态代理
+   + 需要手工编写代理类，代理类引用被代理对象。
+4. 实现原理
+   + 切面在应用运行的时刻被织入。一般情况下，在织入切面时，AOP容器会为目标对象创建动态的创建一个代理对象。SpringAOP就是以这种方式织入切面的。
+   + 织入：把切面应用到目标对象并创建新的代理对象的过程。
+
+### 模板方法设计模式 
+
+1. 概念
+   + 父类定义了骨架（调用哪些方法及顺序），某些特定方法由子类实现。
+   + 最大的好处：代码复用，减少重复代码。除了子类要实现的特定方法，其他方法及方法调用顺序都在父类中预先写好了。
+2. 具体实现
+   + JDBC的抽象和对Hibernate的集成，都采用了一种理念或者处理方式，那就是模板方法模式与相应的Callback接口相结合。
+
+### 装饰设设计模式
+
+1. 实现方式
+
+   + Spring中用到的包装器模式在类名上有两种表现：一种是类名中含有Wrapper，另一种是类名中含有Decorator。
+
+2. 实质
+
+   + 动态地给一个对象添加一些额外的职责。
+
+   + 就增加功能来说，Decorator模式相比生成子类更为灵活。
+
+### 观察者设计模
+
+1. 实现方式：
+   + spring的事件驱动模型使用的是 观察者模式 ，Spring中Observer模式常用的地方是listener的实现。
+2. 具体实现
+   + 事件机制的实现需要三个部分,事件源,事件,事件监听器。
+
+### 策略设计模式
+
+1. 实现方式
+   + Spring框架的资源访问Resource接口。该接口提供了更强的资源访问能力，Spring 框架本身大量使用了 Resource 接口来访问底层资源。
+2. Resource 接口介绍
+   + source 接口是具体资源访问策略的抽象，也是所有资源访问类所实现的接口
+3. Resource 接口本身没有提供访问任何底层资源的实现逻辑，针对不同的底层资源，Spring 将会提供不同的 Resource 实现类，不同的实现类负责不同的资源访问逻辑。
+   + Spring 为 Resource 接口提供了如下实现类：
+     - **UrlResource：** 访问网络资源的实现类。
+     - **ClassPathResource：** 访问类加载路径里资源的实现类。
+     - **FileSystemResource：** 访问文件系统里资源的实现类。
+     - **ServletContextResource：** 访问相对于 ServletContext 路径里的资源的实现类.
+     - **InputStreamResource：** 访问输入流资源的实现类。
+     - **ByteArrayResource：** 访问字节数组资源的实现类。
