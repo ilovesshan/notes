@@ -55,7 +55,7 @@ export default {
           { text: 'myBatis', link: '/pages/backend/myBatis.md' },
           { text: 'spring', link: '/pages/backend/spring.md' },
           { text: 'springMVC', link: '/pages/backend/springMVC.md' },
-          { text: 'ssm整合步骤', link: '/pages/backend/ssmIntegration.md' },
+          { text: 'ssm整合', link: '/pages/backend/ssmIntegration.md' },
           { text: 'springBoot', link: '/pages/backend/springBoot.md' },
         ]
       },
