@@ -49,12 +49,13 @@ export default {
       {
         text: '后端',
         children: [
-          { text: 'java基础', link: '/pages/backend/java-base.md' },
-          { text: 'java高级', link: '/pages/backend/java-advanced.md' },
-          { text: 'javaWeb', link: '/pages/backend/javaWeb.md' },
+          { text: 'java基础', link: '/pages/backend/javaBase.md' },
+          { text: 'java高级', link: '/pages/backend/javaAdvanced.md' },
+          { text: 'javaWEB', link: '/pages/backend/javaWEB.md' },
           { text: 'myBatis', link: '/pages/backend/myBatis.md' },
           { text: 'spring', link: '/pages/backend/spring.md' },
-          { text: 'springMvc', link: '/pages/backend/springMvc.md' },
+          { text: 'springMVC', link: '/pages/backend/springMVC.md' },
+          { text: 'ssm整合步骤', link: '/pages/backend/ssmIntegration.md' },
           { text: 'springBoot', link: '/pages/backend/springBoot.md' },
         ]
       },
