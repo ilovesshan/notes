@@ -49,8 +49,8 @@ export default {
       {
         text: '后端',
         children: [
-          { text: 'java基础', link: '/pages/backend/javaBase.md' },
-          { text: 'java高级', link: '/pages/backend/javaAdvanced.md' },
+          { text: 'javaSE', link: '/pages/backend/javaSE.md' },
+          { text: 'JDK新特性', link: '/pages/backend/jdkNewFeature.md' },
           { text: 'javaWEB', link: '/pages/backend/javaWEB.md' },
           { text: 'myBatis', link: '/pages/backend/myBatis.md' },
           { text: 'spring', link: '/pages/backend/spring.md' },
