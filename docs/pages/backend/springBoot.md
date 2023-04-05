@@ -532,14 +532,21 @@
 
 3. 项目中application.properties和application.yml同时存在情况下，优先使用application.properties，但是在实际开发中我们更青睐于application.yml文件，因为yml文件格式采用扁平化风格书写易于阅读。
 
-4. properties 文件语法：key=value
+4. 配置文件的路径和名都是可以改变的，但是不推荐改变，因为在SpringBoot中我们都遵循“约定大于配置”！，配置文件可以存放的路径
+
+   + 项目根目录下
+   + 项目根目录/config
+   + resurces目录下
+   + resurces/config目录下
+
+5. properties 文件语法：key=value
 
    ```properties
    port=1001
    app.name=springboot-project
    ```
 
-5. yml 文件语法：key:[空格]值
+6. yml 文件语法：key:[空格]值
 
    ```yaml
    port: 1001
@@ -650,7 +657,7 @@
 
      
 
-3. 通过@ConfigurationProperties读取
+3. 通过@ConfigurationProperties读取（后面详解）
 
    + 读取Map
 
@@ -735,6 +742,270 @@
      ```
 
 
+
+### 读取指定配置文件信息
+
+1. 读取指定配置文件信息可以通过@PropertySource(value = "classpath:xxx.yml") 读取指定的配置文件。
+
+   + temp.yml
+
+     ```yaml
+     name: ilovesshan
+     age: 20
+     ```
+
+   + 读取配置文件
+
+     ```java
+     @Configuration(proxyBeanMethods = false)
+     @PropertySource(value = "classpath:temp.yml")
+     public class TempData {
+         @Value("${name}")
+         private String name;
+     
+         @Value("${age}")
+         private int age;
+     
+         public void print() {
+             System.out.println("name = " + name + ", age = " + age);
+         }
+     }
+     ```
+
+     
+
+   
+
+### 绑定 Bean
+
+1. 简单属性绑定
+
+   + @Configuration，标识该类是一个配置类。
+     + proxyBeanMethods = false， 表示该类是一个普通的JavaBean对象
+     + proxyBeanMethods = true（默认）， 表示该类是一个非普通的JavaBean对象，底层对该对象进行了一层代理。
+   + @ConfigurationProperties
+     + prefix = "xxx"，配置文件中多个属性的公共前缀。
+   + 进行属性绑定时，请保证Bena的属性名（按规范生成getter和setter）和配置文件的属性名称保持一致，否则可能会赋值失败！
+
+   ```yaml
+   app:
+   version: 1.0.0
+   devGroup: ilovesshan
+   describe: 网捷回收【1.0.0】 版本正式发布啦!
+   ```
+
+   ```java
+   @Data
+   @Configuration(proxyBeanMethods = false)
+   @ConfigurationProperties(prefix = "app")
+   public class AppBean {
+       private String version;
+       private String devGroup;
+       private String describe;
+   }
+   ```
+
+   
+
+2. 嵌套Bean
+
+   ```yaml
+   app:
+     version: 1.0.0
+     devGroup: ilovesshan
+     describe: 网捷回收【1.0.0】 版本正式发布啦!
+     responsiblePerson:
+       username: ilovesshan
+       github: https://github.com/ilovesshan/wjhs
+   ```
+
+   ```java
+   @Data
+   public class ResponsiblePerson {
+       private String username;
+       private String github;
+   }
+   ```
+
+   ```java
+   @Data
+   @Configuration(proxyBeanMethods = false)
+   @ConfigurationProperties(prefix = "app")
+   public class AppBean {
+       private String version;
+       private String devGroup;
+       private String describe;
+       private  ResponsiblePerson responsiblePerson;
+   }
+   ```
+
+   
+
+3. 扫描注解
+
+   + 配置扫描@ConfigurationProperties注解的注解，配置了扫描注解之后，就可以省略@Configuration了！
+
+   + 配置扫描注解有两种方式
+
+     + 添加EnableConfigurationProperties注解，并传递Bean的Clazz信息，一般将该注解放在启动类上。
+
+       ```java
+       @EnableConfigurationProperties({AppBean.class})
+       @SpringBootApplication
+       public class Application {
+           // ...
+       }
+       ```
+
+       
+
+     + 添加@ConfigurationPropertiesScan注解，通过配置指定包，来扫描@ConfigurationProperties注解
+
+       ```java
+       @ConfigurationPropertiesScan("com.ilovesshan.bean")
+       @SpringBootApplication
+       public class Application {
+           // ...
+       }
+       ```
+
+       
+
+4. 绑定第三方Bean
+
+   + 上面案例中我们都是绑定自定义的Bean，我们可以将@ConfigurationProperties注解直接加在源文件上。
+
+   + 如果选择要绑定第三方Bean对象，我们看不到源文件怎么办？？
+
+     + 可以通过@Bean + @ConfigurationProperties方式。
+     + @Bean + @ConfigurationProperties注解都放在方法上。
+
+   + 代码演示，如何绑定第三方Bean
+
+     + 假设这是一个第三方的Bean
+
+       ```java
+       @Data
+       public class YfDataSources {
+           private String driver;
+           private String username;
+           private String password;
+       }
+       ```
+
+     ```yaml
+     data-sources:
+       driver: jdbc:mysql://localhost:8080/db
+       username: username
+       password: username123
+     ```
+
+     ```java
+     @Configuration
+     public class YfBeanService {
+         @Bean
+         @ConfigurationProperties(prefix = "data-sources")
+         public YfDataSources getYfDataSources() {
+             return new YfDataSources();
+         }
+     }
+     ```
+
+5. List/Map/Array类型数据绑定
+
+   ```java
+   @Data
+   public class Friend {
+       private String username;
+       private String gender;
+   }
+   ```
+
+   ```java
+   @Data
+   @Configuration(value = "multipleData", proxyBeanMethods = false)
+   @ConfigurationProperties(prefix = "multiple")
+   public class MultipleData {
+       private String[] names;
+       private List<Friend> friendList;
+       private Map<String, Friend> friendMap;
+   }
+   ```
+
+   ```yaml
+   multiple:
+     # String[] names 定义Array类型, 每个值通过 -[空格] 进行分割
+     names:
+       - jack
+       - tom
+       - lucy
+   
+     # List<Friend> friendList 定义List类型
+     friendList:
+       - username: jack
+         gender: 男
+       - username: tom
+         gender: 男
+       - username: lucy
+         gender: 女
+   
+     # Map<String,Student> friendMap 定义类型
+     friendMap:
+       f1:
+         username: jack
+         gender: 男
+       f2:
+         username: tom
+         gender: 男
+       f3:
+         username: lucy
+         gender: 女
+   ```
+
+
+
+### 创建Bena的三种方式
+
+1. 通过 @Bean + @Configuration 注解
+
+2. 通过 @Component、@Controller、@Service、@Repository注解
+
+3. 通过xml配置\<bean> 标签（不推荐），如果有需求怎么实现呢？可以通过@ImportResource(locations = "classpath:/xxx.xml")方式导入指定的配置文件。
+
+   + User 
+
+     ```java
+     @Data
+     public class User {
+         private String uname;
+         private String pwd;
+     }
+     ```
+
+     
+
+   + user.xml
+
+     ```xml
+     <bean id="user" class="com.ilovesshan.bean.User">
+         <property name="uname" value="ilovesshan"/>
+         <property name="pwd" value="ilovesshan123"/>
+     </bean>
+     ```
+
+     
+
+   + 测试
+
+     ```java
+     @ImportResource(locations = "classpath:/user.xml")
+     class UserService {
+         @Resource
+         private User user;
+     }
+     ```
+
+     
 
 ### 多文件配置
 
@@ -875,4 +1146,270 @@
    }
    ```
 
+
+
+
+
+## SpringBoot AOP
+
+### AOP 概念
+
+相关AOP概念可以参考 [Spring AOP](https://ilovesshan.github.io/pages/backend/spring.html#spring-aop) ，里面介绍的非常详细！！
+
+### 业务方法日志记录
+
+1. SpringBoot 项目中使用 AOP需要先导入依赖
+
+   + spring-boot-starter-aop 中包含了 spring-aop 和 aspectj的依赖
+
+   ```xml
+   <dependency>
+       <groupId>org.springframework.boot</groupId>
+       <artifactId>spring-boot-starter-aop</artifactId>
+   </dependency>
+   ```
+
+2. 编写业务代码
+
+   ```java
+   public interface UserService {
+       void deleteUser(String userId);
+       void updateUser(String userId, String username);
+   }
+   ```
+
+   ```java
+   @Service
+   public class UserServiceImpl implements UserService {
+       @Override
+       public void deleteUser(String userId) {
+           System.out.println("删除用户...");
+       }
    
+       @Override
+       public void updateUser(String userId, String username) {
+           System.out.println("更新用户...");
+       }
+   }
+   ```
+
+   
+
+3. 定义切面
+
+   ```java
+   @Component
+   @Aspect
+   public class LogAspect {
+       // 前置通知
+       @Before("execution(* com.example.spring06aop.service..*.*(..))")
+       public void beforeAdvice(JoinPoint joinPoint) {
+           String methodName = joinPoint.getSignature().getName();
+           Object[] methodArgs = joinPoint.getArgs();
+           System.out.println("==============" + methodName + ", " + Arrays.toString(methodArgs) + "==============");
+       }
+   }
+   ```
+
+   
+
+4. 单元测试
+
+   ```java
+   @SpringBootTest
+   class ApplicationTests {
+   
+       @Resource
+       private UserService userService;
+   
+       @Test
+       void contextLoads() {
+           userService.deleteUser("1");
+           userService.updateUser("1", "jack");
+       }
+   }
+   ```
+
+
+
+## SpringBoot 自动配置解析
+
+### SpringBoot 自动配置概念
+
+1. 先聊以下SpringBoot 自动配置是啥意思，再进行代码分析，后面可能会茅塞顿开。
+2. SpringBoot 自动配置概念：在SpringBoot项目启动阶段，SpringBoot会尝试去加载项目中所需要的默认的Bean，具体是通过读取这些Bean的属性/注解信息然后尝试去项目的配置文件中加载所需的数据资源，从而完成自动配置功能。
+
+### 三个核心注解介绍
+
+1. 搭建SpringBoot环境的时候，有没有觉得非常简单。无须各种的配置文件，无须各种繁杂的pom坐标，一个main方法，就能run起来了。与其他框架整合也贼方便，使用一些注解就可以搞起来了，下面聊聊SpringBoot是如何实现自动配置的~
+
+   
+
+2. 先看入口类的main方法，有一个@SpringBootApplication注解，不用多想这个注解肯定干了很多活！！
+
+   ![image-20230405151821777](../../.vuepress/public/image-20230405151821777.png)
+
+   
+
+3. 进入到@SpringBootApplication注解中，有三个核心注解。
+
+   + @SpringBootConfiguration
+   + @EnableAutoConfiguration
+   + @ComponentScan
+
+   ![image-20230405151940453](../../.vuepress/public/image-20230405151940453.png)
+
+   
+
+4. 经源码观察，我们可以理解成启动函数是这样的，@SpringBootApplication是一个复合注解！！
+
+   ```java
+   @SpringBootConfiguration
+   @EnableAutoConfiguration
+   @ComponentScan(
+       excludeFilters = {@ComponentScan.Filter(
+           type = FilterType.CUSTOM,
+           classes = {TypeExcludeFilter.class}
+       ), @ComponentScan.Filter(
+           type = FilterType.CUSTOM,
+           classes = {AutoConfigurationExcludeFilter.class}
+       )}
+   )
+   public class Application {
+   
+       public static void main(String[] args) {
+           SpringApplication.run(Application.class, args);
+       }
+   
+   }
+   ```
+
+
+
+### @SpringBootConfiguration
+
+1. 进入到SpringBootConfiguration注解中
+
+   ![image-20230405152508224](../../.vuepress/public/image-20230405152508224.png)
+
+2. 会发现，这个注解又被@Configuration注解所标识，说白了就是被@SpringBootConfiguration标识的类支持以JavaConfig的方式进行配置，使用Configuration配置类等同于XML配置。
+
+   
+
+### @ComponentScan
+
+1. @ComponentScan注解应该不陌生，我们学习Spring的时候会经常使用到。
+
+2. @ComponentScan主要是进行注解扫描（@Component、@Controller、@Service、@Repository），默认扫描当前类下的包。
+
+   
+
+### @EnableAutoConfiguration
+
+1. @EnableAutoConfiguration（开启自动配置），SpringBoot中遵循“约定大于配置”，那么是怎么做到的呢？其实就是靠这个注解来实现的，简单来说，这个注解可以帮我们载入系统中所需要的所有的默认配置！
+
+   
+
+2. 进入到@EnableAutoConfiguration注解中，有两个重要的注解
+
+   + @AutoConfigurationPackage，自动配置包（ 添加该注解的类所在的package作为自动配置package进行管理）。
+   + @Import({AutoConfigurationImportSelector.class})，给IOC容器导入组件
+
+   ![image-20230405153902066](../../.vuepress/public/image-20230405153902066.png)
+
+   
+
+3. 看一下@AutoConfigurationPackage注解信息，其实还是使用了@Import注解，可见@Import注解应该很重要！！
+
+   + ![image-20230405154307698](../../.vuepress/public/image-20230405154307698.png)
+
+   
+
+   + 进到Register.class中就是以下代码，主要观察registerBeanDefinitions方法。
+
+     ```java
+     static class Registrar implements ImportBeanDefinitionRegistrar, DeterminableImports {
+         Registrar() {
+         }
+     
+         public void registerBeanDefinitions(AnnotationMetadata metadata, BeanDefinitionRegistry registry) {
+             AutoConfigurationPackages.register(registry, (String[])(new AutoConfigurationPackages.PackageImports(metadata)).getPackageNames().toArray(new String[0]));
+         }
+     
+         public Set<Object> determineImports(AnnotationMetadata metadata) {
+             return Collections.singleton(new AutoConfigurationPackages.PackageImports(metadata));
+         }
+     }
+     ```
+
+     
+
+   + 打断点调试一下，可以得到结论：SpringBoot项目启动时，默认扫描启动类所在包及其子包里边的组件扫描到Spring容器中。
+
+     ![image-20230405155057670](../../.vuepress/public/image-20230405155057670.png)
+
+     
+
+   + 看完这里，有没有发现@AutoConfigurationPackage和@ComponentScan的功能好像有点像？？都是扫描组件并且添加到IOC容器中？？
+
+     + 其实这二者扫描的对象是不一样的。
+
+     + `@Controller/@Service/@Component/@Repository`这些注解是由`ComponentScan`来扫描并加载的。
+
+     + 比如说，你用了Spring Data JPA，可能会在实体类上写`@Entity`注解。这个`@Entity`注解由`@AutoConfigurationPackage`扫描并加载。
+
+       
+
+4. 回到@Import注解中，那就先回到@EnableAutoConfiguration注解中。
+
+   + 进入到AutoConfigurationImportSelector.class类中，找到getAutoConfigurationEntry方法。
+
+     ![image-20230405161316849](../../.vuepress/public/image-20230405161316849.png)
+
+     
+
+   + 进入到getCandidateConfigurations方法中。
+
+     ![image-20230405161410237](../../.vuepress/public/image-20230405161410237.png)
+
+     
+
+   + 从Assert描述信息得知，load方法好像是在加载什么文件，为了一探究竟那就进入到load方法。
+
+     ![image-20230405161837424](../../.vuepress/public/image-20230405161837424.png)
+
+     
+
+   + 从项目jar包寻找和`"META-INF/spring/%s.imports"`路径相关的文件，在org.springframework.boot.autoconfigure包下面，这是SpringBoot的包。
+
+     ![image-20230405162145123](../../.vuepress/public/image-20230405162145123.png)
+
+     
+
+   + 可以发现 org.springframework.boot.autoconfigure.AutoConfiguration.imports文件中存放了大量配置类，也就是SpringBoot启动时回去尝试加载这些类（SpringBoot3.0.5版本是142个类），再根据配置类中的信息尝试去项目配置文件中加载配置信息，换句话说就时我们不用手动来配置这些类了，仅仅提供一些配置数据源就ok了！
+
+     
+
+   + 可以浅析分析一下org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration配置类。
+
+     + 根据该路径找到DataSourceAutoConfiguration这个类
+
+       ![image-20230405163026679](../../.vuepress/public/image-20230405163026679.png)
+
+       
+
+     + 观察一下@ConditionalOnClass({DataSource.class, EmbeddedDatabaseType.class})注解
+
+       + 这个注解通俗的说就是SpringBoot工程中引用了DataSource相关的包 才会构建这个bean。
+       
+     + 还记得@EnableConfigurationProperties()注解吗？如果忘记了请看[绑定Bena章节]()
+     
+       + @EnableConfigura绑定Bena章节tionProperties，就是说将使用了@ConfigurationProperties注解的类进行属性绑定呗！！
+     
+       + @EnableConfigurationProperties({DataSourceProperties.class})注解含义就是对DataSourceProperties类中的属性进行绑定呗，进入到DataSourceProperties中。
+     
+         ![image-20230405164655144](../../.vuepress/public/image-20230405164655144.png)
+     
+       + 看到这个注解和类中属性吗，是不是就豁然开朗了？？，我们直接在配置文件中配置以`spring.datasource` 作为前缀配置相关属性就ok啦！！！！
+     
+     
