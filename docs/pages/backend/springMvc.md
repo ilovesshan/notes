@@ -2278,16 +2278,29 @@ Spring MVC 有以下 3 种处理异常的方式：
 
 1. DispatcherServlet（前端处理器）
    + 作用：接收请求、响应结果，相当于转发器，有了DispatcherServlet 就减少了其它组件之间的耦合度。
+   
 2. HandlerMapping（处理器映射器）
    + 根据请求的URL来查找Handler
+   
 3. HandlerAdapter（处理器适配器）
    + 负责调用Handler
+   
 4. Handler（处理器）
    + Handler就是程序员开发的控制器方法
+   
 5. ViewResolver（视图解析器）
    + 进行视图的解析，根据视图逻辑名解析成真正的视图（view）
+   
 6. View（视图）
    + View是一个接口， 它的实现类支持不同的视图类型（jsp，freemarker，pdf等等）
+   
+     
+
+### DiapatcherServlet 
+
+![image-20230406172828313](../../.vuepress/public/image-20230406172828313.png)
+
+
 
 ### SpringMVC 执行流程
 

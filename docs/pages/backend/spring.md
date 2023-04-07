@@ -4070,7 +4070,7 @@ public class JdbcTemplateTest {
 
 
 
-### 操作 DQL语句
+### 执行 DQL语句
 
 ```java
 @Test
@@ -4101,7 +4101,7 @@ public void testSelectSingleFiled() {
 
 
 
-### 操作 DML语句
+### 执行 DML语句
 
 ```java
 @Test
@@ -4134,7 +4134,7 @@ public void testDelete() {
 
 
 
-### 批量操作DML语句
+### 批量执行DML语句
 
 ```java
 @Test
