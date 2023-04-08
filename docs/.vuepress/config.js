@@ -42,34 +42,36 @@ export default {
       {
         text: '移动端',
         children: [
-          { text: 'android', link: '/pages/mobile/android.md' },
-          { text: 'flutter', link: '/pages/mobile/flutter.md' },
+          { text: 'Android', link: '/pages/mobile/android.md' },
+          { text: 'Flutter', link: '/pages/mobile/flutter.md' },
         ]
       },
       {
         text: '后端',
         children: [
-          { text: 'javaSE', link: '/pages/backend/javaSE.md' },
+          { text: 'JavaSE', link: '/pages/backend/javaSE.md' },
           { text: 'JDK新特性', link: '/pages/backend/jdkNewFeature.md' },
-          { text: 'javaWEB', link: '/pages/backend/javaWEB.md' },
-          { text: 'myBatis', link: '/pages/backend/myBatis.md' },
-          { text: 'spring', link: '/pages/backend/spring.md' },
-          { text: 'springMVC', link: '/pages/backend/springMVC.md' },
-          { text: 'ssm整合', link: '/pages/backend/ssmIntegration.md' },
-          { text: 'springBoot', link: '/pages/backend/springBoot.md' },
+          { text: 'JavaWEB', link: '/pages/backend/javaWEB.md' },
+          { text: 'MyBatis', link: '/pages/backend/myBatis.md' },
+          { text: 'Spring', link: '/pages/backend/spring.md' },
+          { text: 'SpringMVC', link: '/pages/backend/springMVC.md' },
+          { text: 'SSM整合', link: '/pages/backend/ssmIntegration.md' },
+          { text: 'SpringBoot', link: '/pages/backend/springBoot.md' },
+          { text: 'SpringCloud', link: '/pages/backend/springCloud.md' },
         ]
       },
       {
         text: '数据库',
         children: [
-          { text: 'mysql', link: '/pages/database/mysql.md' },
+          { text: 'MySQL', link: '/pages/database/mysql.md' },
+          { text: 'Redis', link: '/pages/database/redis.md' },
         ]
       },
       {
         text: '部署工具',
         children: [
-          { text: 'linux', link: '/pages/deploy/linux.md' },
-          { text: 'nginx', link: '/pages/deploy/nginx.md' },
+          { text: 'Linux', link: '/pages/deploy/linux.md' },
+          { text: 'Nginx', link: '/pages/deploy/nginx.md' },
         ]
       },
       {
