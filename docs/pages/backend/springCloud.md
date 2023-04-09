@@ -59,7 +59,7 @@ Spring Cloud
 
 1. Spring Cloud是目前国内使用最广泛的微服务框架，官网地址：https://spring.io/projects/spring-cloud。
 
-2. SpringCloud集成了各种微服务功能组件，并基于SpringBoot实现了这些组件的自动装配，从而提供了良好的开箱即用体验
+2. SpringCloud集成了各种微服务功能组件，并基于springcloud实现了这些组件的自动装配，从而提供了良好的开箱即用体验
 
    + 服务注册发现
 
@@ -87,7 +87,9 @@ Spring Cloud
 
        
 
-3. Spring Cloud和SpringBoot版本关系对照表
+3. Spring Cloud和springcloud版本查询地址： https://start.spring.io/actuator/info 
+
+4. Spring Cloud和springcloud版本关系对照表
 
    | Release Train                                                | Release Train                         |
    | ------------------------------------------------------------ | ------------------------------------- |
@@ -104,10 +106,10 @@ Spring Cloud
 
 ### 微服务拆分案例
 
-1. 将项目拆分成两个模块，分别是user-server（用户模块）和order-service（订单模块），springboot01作为user-server和order-server的父模块，user-server和order-server都是SpringBoot项目（需要手动写一下启动口类和相关配置文件application.yml，因为这是创建的Maven工程而不是通过spring initializr创建的工程），我们需要在springboot01的pom文件中引入公共依赖，再在user-server和order-server子工程中引入所需要的依赖。
+1. 将项目拆分成两个模块，分别是user-server（用户模块）和order-service（订单模块），springcloud01作为user-server和order-server的父模块，user-server和order-server都是springcloud项目（需要手动写一下启动口类和相关配置文件application.yml，因为这是创建的Maven工程而不是通过spring initializr创建的工程），我们需要在springcloud01的pom文件中引入公共依赖，再在user-server和order-server子工程中引入所需要的依赖。
 
    ```xml
-   <!-- 将当前项目声明为 springboot 项目 -->
+   <!-- 将当前项目声明为 springcloud 项目 -->
    <parent>
        <artifactId>spring-boot-starter-parent</artifactId>
        <groupId>org.springframework.boot</groupId>
@@ -164,7 +166,7 @@ Spring Cloud
 
    
 
-2. user-server使用 springcloud-user数据库，order-service使用 springcloud-order数据库，再分别提供一个根据ID查询信息的接口。省略了实体类、service层和mapper层代码...（和平时使用SpringBoot框架开发一样搞就行了）。
+2. user-server使用 springcloud-user数据库，order-service使用 springcloud-order数据库，再分别提供一个根据ID查询信息的接口。省略了实体类、service层和mapper层代码...（和平时使用springcloud框架开发一样搞就行了）。
 
    + springcloud-user
 
@@ -362,7 +364,7 @@ Spring Cloud
 
 ### 搭建Eureka Server
 
-1. 引入依赖（需要新建立一个模块eureka-server，案例代码还是在springboot01工程基础上），依赖统一在父工程进行声明。
+1. 引入依赖（需要新建立一个模块eureka-server，案例代码还是在springcloud01工程基础上），依赖统一在父工程进行声明。
 
    ```xml
    <!-- 手动指定了版本号、按道理可以不用管版本号的（可能是Maven或者IDEA问题）-->
@@ -377,7 +379,7 @@ Spring Cloud
 
    ```java
    @EnableEurekaServer
-   @SpringBootApplication
+   @springcloudApplication
    public class EurekaApplication {
        public static void main(String[] args) {
            SpringApplication.run(EurekaApplication.class, args);
@@ -509,4 +511,347 @@ Spring Cloud
    ```
 
 4. 重启order-server服务，浏览器多次访问http://localhost:8081/orders/id，观察控制台会发现8083/8082服务器会交替响应客户请求，说明负载均衡是有效果的。
+
+
+
+## Ribbon 负载均衡
+
+### 负载均衡流程
+
+1. 负载均衡流程
+
+   ![image-20230409133656458](../../.vuepress/public/image-20230409133656458.png)
+
+   
+
+### 负载均衡策略
+
+1. IRule接口
+
+   ![image-20230409160426651](../../.vuepress/public/image-20230409160426651.png)
+
+   
+
+2. Ribbon的负载均衡规则是一个叫做IRule的接口来定义的，每一个子接口都是一种规则：
+
+   | **内置负载均衡规则类**    | **规则描述**                                                 |
+   | ------------------------- | ------------------------------------------------------------ |
+   | RoundRobinRule            | 简单轮询服务列表来选择服务器。它是Ribbon默认的负载均衡规则。 |
+   | AvailabilityFilteringRule | 对以下两种服务器进行忽略： （1）在默认情况下，这台服务器如果3次连接失败，这台服务器就会被设置为“短路”状态。短路状态将持续30秒，如果再次连接失败，短路的持续时间就会几何级地增加。（2）并发数过高的服务器。如果一个服务器的并发连接数过高，配置了AvailabilityFilteringRule规则的客户端也会将其忽略。并发连接数的上限，可以由客户端的\<clientName>.\<clientConfigNameSpace>.ActiveConnectionsLimit属性进行配置。 |
+   | WeightedResponseTimeRule  | 为每一个服务器赋予一个权重值。服务器响应时间越长，这个服务器的权重就越小。这个规则会随机选择服务器，这个权重值会影响服务器的选择。 |
+   | ZoneAvoidanceRule         | 以区域可用的服务器为基础进行服务器的选择。使用Zone对服务器进行分类，这个Zone可以理解为一个机房、一个机架等。而后再对Zone内的多个服务做轮询。 |
+   | BestAvailableRule         | 忽略那些短路的服务器，并选择并发数较低的服务器。             |
+   | RandomRule                | 随机选择一个可用的服务器。                                   |
+   | RetryRule                 | 重试机制的选择逻辑                                           |
+
+   
+
+3. 配置 负载均衡策略
+
+   + 代码方式：在order-server中的OrderApplication类中，定义一个新的IRule
+
+     ```java
+     @Bean
+     public IRule randomRule(){ 
+         return new RandomRule();
+     }
+     ```
+
+   + 配置文件方式：在order-server的application.yml文件中，添加新的配置也可以修改规则：
+
+     ```yaml
+     userservice:
+       ribbon:
+       	# 负载均衡规则 
+         NFLoadBalancerRuleClassName: com.netflix.loadbalancer.RandomRule
+     ```
+
+     
+
+### 饥饿加载
+
+1. Ribbon默认是采用懒加载，即第一次访问时才会去创建LoadBalanceClient，请求时间会很长，而饥饿加载则会在项目启动时创建，降低第一次访问的耗时，通过下面配置开启饥饿加载：
+
+   ```yaml
+   ribbon:
+     eager-load:
+       enabled: true # 开启饥饿加载 
+         clients: userservice # 指定对userservice这个服务饥饿加载 
+   ```
+
+   
+
+## Nacos 注册中心
+
+### Nacos 简介
+
+1. Nacos官网地址：https://nacos.io/zh-cn/docs/v2/what-is-nacos.html
+2. Nacos官网Github地址：https://github.com/alibaba/nacos
+3. 什么是Nacos
+   + Nacos /nɑ:kəʊs/ 是 Dynamic Naming and Configuration Service的首字母简称，一个更易于构建云原生应用的动态服务发现、配置管理和服务管理平台。
+   + Nacos 致力于帮助您发现、配置和管理微服务。Nacos 提供了一组简单易用的特性集，帮助您快速实现动态服务发现、服务配置、服务元数据及流量管理。
+   + Nacos 帮助您更敏捷和容易地构建、交付和管理微服务平台。 Nacos 是构建以“服务”为中心的现代应用架构 (例如微服务范式、云原生范式) 的服务基础设施。
+4. Nacos 的关键特性
+   + 服务发现和服务健康监测
+   + 动态配置服务
+   + 动态 DNS 服务
+   + 服务及其元数据管理
+
+### Nacos 环境搭建
+
+1. 下载Nacos，直接到Github下载即可，[Nacos 1.X](https://nacos.io/zh-cn/docs/quick-start.html)是老版本，将来会停止维护。 建议您使用[2.X版本](https://nacos.io/zh-cn/docs/v2/quickstart/quick-start.html)。Nacos的下载地址：https://github.com/alibaba/nacos/releases。
+
+2. 可以根据需求下载Linux版本或者Windows版本（我选择Windows），下载之后解压。
+
+   + bin：启动目录
+   + conf：配置文件
+
+   ![image-20230409172859701](../../.vuepress/public/image-20230409172859701.png)
+
+   
+
+3. Ncos端口配置
+
+   + Nacos的默认端口是8848，如果你电脑上的其它进程占用了8848端口，请先尝试关闭该进程。如果无法关闭占用8848端口的进程，也可以进入nacos的conf目录，修改application.properties配置文件中的端口。
+
+     
+
+4. 启动Nacos
+
+   + 进入到bin目录下执行
+
+     ```bat
+     startup.cmd -m standalone
+     ```
+
+   + 显式下面LOGO信息，并且无报错就表示启动成功了
+
+     ![image-20230409173219331](../../.vuepress/public/image-20230409173219331.png)
+
+   
+
+5. 浏览器输入：http://192.168.1.168:8848/nacos/index.html，能够正常访问就表示OK了！！
+
+   
+
+### Nacos 服务注册
+
+1. 父工程中添加spring-cloud-alilbaba的管理依赖（将之前代码copy了一份叫做springcloud-nacos）。
+
+   ```xml
+   <dependency>
+       <groupId>com.alibaba.cloud</groupId>
+       <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+       <version>2.2.6.RELEASE</version>
+       <type>pom</type>
+       <scope>import</scope>
+   </dependency>
+   ```
+
+   
+
+2. 注释掉order-service和user-service中原有的eureka依赖，再添加nacos的客户端依赖
+
+   ```xml
+   <dependency>
+       <groupId>com.alibaba.cloud</groupId>
+       <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+   </dependency>
+   ```
+
+   
+
+3. 修改order-service和user-service的配置文件，注释eureka地址，添加nacos地址。
+
+   ```yaml
+   spring:
+     cloud:
+       nacos:
+         # 配置Nacos 服务端地址(也可以不用配置，因为默认就是localhost:8848)
+         server-addr: localhost:8848
+   ```
+
+   
+
+4. 重新启动order-service和user-service服务，访问order-service接口，不报错表示已经成功将服务注册到Nacos上面了。
+
+   + 需要提前将Nacos服务启动起来哈！！
+   + 因为现在是将服务注册到Nacos上，而不是Eureka上面，所以eureka-service服务可以不用启动。
+
+### Nacos 服务分级存储模型
+
+1. 服务分级模型
+
+   + 一级：服务，例如userService
+   + 二级：集群，例如上海机房、北京机房
+   + 三级：实例，北京机房部署了userService的实例
+
+   ![image-20230409200838162](../../.vuepress/public/image-20230409200838162.png)
+
+   
+
+2. 服务跨集群调用问题
+
+   + 服务调用尽可能选择本地集群服务调用，因为跨集群服务调用延迟较高。
+
+   + 本地集群不可访问时，再去访问其它集群。
+
+     
+
+3. 配置服务集群属性
+
+   + 简单理解就是，将user-service实例1部署到哪一个集群，将user-service实例2部署到哪一个集群，以此类推，默认情况下可以在Nacos中发现集群叫做：DEFAULT
+
+     ![image-20230409201211616](../../.vuepress/public/image-20230409201211616.png)
+
+     
+
+   + 修改服务的配置文件（user-service和order-service都需要修改）
+
+     + 将user-service实例一（8082）和实例二（8083）以及order-service配置集群到HZ
+     + 将user-service实例三（8084）配置集群到SH
+
+     ```yaml
+     spring:
+       cloud:
+         inetutils:
+           # 配置Nacos 服务端地址
+           default-ip-address: localhost:8848
+         nacos:
+           discovery:
+               # 集群名称 杭州(HZ)
+             cluster-name: HZ
+     ```
+
+     ![image-20230409203441065](../../.vuepress/public/image-20230409203441065.png)
+
+     
+
+### Nacos 负载均衡
+
+1. 将集群属性配置好之后，访问http://localhost:8081/orders/id，会发现三个实例是随机访问的，其实并没有满足服务跨集群调用问题，优先访问本地集群，本地集群不能访问时再访问其他集群（这时候IDEA控制台会有警告信息，告诉你跨集群调用服务了）。
+
+   
+
+2. 其实这个问题，可以通过配置Nacos负载均衡来实现
+
+   ```yaml
+   # 在order-service中设置负载均衡的IRule为NacosRule，这个规则优先会寻找与自己同集群的服务
+   userServer:
+     ribbon:
+       # 负载均衡规则 
+       NFLoadBalancerRuleClassName: com.alibaba.cloud.nacos.ribbon.NacosRule 
+   ```
+
+3. 如果上述配置不生效，请查看项目中是否自定义了IRule负载均衡规则覆盖住NacosRule，例如：
+
+   ```java
+   @Bean
+   public IRule iRule() {
+       return new RandomRule();
+   }
+   ```
+
+   
+
+4. 负载均衡权重问题
+
+   + 项目中可能一部分服务器性能较好，另一部分略差，那么多个并发请求时，当然是性能好的服务器处理更多的请求，就目前配置来看每个服务的访问频率都大差不差。
+
+   + 要解决这个问题，我们可以在Nacos控制台上配置权重（默认是1），权重值是0.1 - 1之间， 权重值越大访问频率越高，如果权重是0，则完全不会被访问，直接在Nacos控制台更改权重就可以了。
+
+     ![image-20230409213931517](../../.vuepress/public/image-20230409213931517.png)
+
+
+
+### Nacos 环境隔离
+
+1. Nacos中服务存储和数据存储的最外层都是一个名为namespace的东西，用来做最外层隔离。
+
+2. 在Nacos控制台可以创建namespace，用来隔离不同环境。
+
+   ![image-20230409215107734](../../.vuepress/public/image-20230409215107734.png)
+
+3. 创建完成之后，会得到一个命名空间ID
+
+   ![image-20230409215159312](../../.vuepress/public/image-20230409215159312.png)
+
+4. 修改order-service的application.yml，添加namespace
+
+   ```yaml
+   spring:
+     application:
+       # 配置服务名称
+       name: orderServer
+       
+     cloud:
+       inetutils:
+         # 配置Nacos 服务端地址
+         default-ip-address: localhost:8848
+       nacos:
+         discovery:
+           # 集群名称 杭州(HZ)
+           cluster-name: HZ
+           # 设置环境ID
+           namespace: 71150466-bf99-45b3-9ec4-09524214570d
+   ```
+
+5. 重启order-service服务，再次访问http://localhost:8081/orders/101，会发现order-service调用user-service服务接口时失败了，因为不同namespace下的服务互相不可见。
+
+   + order-service在dev命名空间下
+   + user-service在默认的public(保留空间)命名空间下
+
+   ```tex
+   No instances available for userServer
+   ```
+
+### Nacos 临时和非临时实例
+
+1. Nacos中默认都是临时实例，如果想将某个服务配置成非临时实例，可以修改对应服务的配置文件
+
+   ```yml
+   spring:
+      nacos:
+        # 设置为非临时实例
+   	 ephemeral: false 
+   ```
+
+2. 临时实例和非临时实例有什么区别？
+
+   + 临时实例
+     + 采用心跳检测来告诉Nacos当前服务的状态。
+     + 如果服务挂掉了，那么Nacos会从注册列表中将当前服务移除。
+   + 非临时实例
+     + Nacos主动询问当前服务的状态。
+     + 如果服务挂掉了，Nacos不会从注册列表中将当前服务移除，而是继续等待服务重启。
+
+### Nacos 和 Eureka 对比
+
+1. 相同点
+
+   + 都支持服务注册和服务拉去。
+   + 都支持服务提供者的心跳机制做健康检测。
+
+2. 不同点
+
+   + Nacos支持服务端主动检测服务提供者状态，临时实例采用心跳模式，非临时实例采用主动检测模式，临时实例心跳不正常会被剔除，非临时实例不会。
+   + Nacos支持服务列表变更的消息推送模式，让服务消费者中的服务列表更新更及时。
+   + Nacos集群默认采用AP方式，当集群中存在非临时实例时，采用CP模式；Eureka采用AP方式
+
+   
+
+## 项目版本依赖对照
+
+| 环境/依赖名称                                | 版本号        |
+| -------------------------------------------- | ------------- |
+| jdk                                          | 1.8.0_181     |
+| maven                                        | 3.3.9         |
+| spring-boot-starter-parent                   | 2.3.9.RELEASE |
+| spring-boot-starter                          | 2.3.4.RELEASE |
+| spring-boot-starter-web                      | 2.3.9.RELEASE |
+| spring-cloud-dependencies                    | Hoxton.SR10   |
+| spring-cloud-starter-netflix-eureka-server   | 2.2.7.RELEASE |
+| spring-cloud-alibaba-dependencies            | 2.2.6.RELEASE |
+| spring-cloud-starter-alibaba-nacos-discovery | 2.2.6.RELEASE |
+| nacos                                        | 1.4.1         |
 
