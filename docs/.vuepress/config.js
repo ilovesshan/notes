@@ -72,6 +72,7 @@ export default {
         children: [
           { text: 'Linux', link: '/pages/deploy/linux.md' },
           { text: 'Nginx', link: '/pages/deploy/nginx.md' },
+          { text: 'Docker', link: '/pages/deploy/docker.md' },
         ]
       },
       {
