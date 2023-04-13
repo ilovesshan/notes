@@ -348,7 +348,7 @@ select car_num, brand, guide_price, produce_time, car_type from t_car;
 
 在 MyBatis 中有两种类型的事务管理器（也就是 type="[JDBC|MANAGED]"），也就是\<transactionManager type="JDBC"/>标签的types属性值
 
-+ JDBC ：将事务管理权交给mybatis来管理，这个配置底层是使用了 JDBC 的提交和回事务功能
++ JDBC ：将事务管理权交给mybatis来管理，这个配置底层是使用了 JDBC 的提交和回滚事务的功能
 
   + SqlSession sqlSession = sqlSessionFactory.openSession(); 
 
@@ -596,15 +596,15 @@ public class SqlSessionUtil {
      + 第三方实现
 
        + 常见的有logback、log4j、log4j2这三大日志框架，其中log4j2是log4j 1.x的升级版，因为改动很大，所以作为一个新的日志框架独立使用。
-       + logback的配置文件是 logback.xml，log4j的配置文件是`log4j.xml`，log4j2的配置文件是`log4j2.xml`。
+       + logback的配置文件是 `logback.xml`，log4j的配置文件是`log4j.xml`，log4j2的配置文件是`log4j2.xml`。
 
    + 日志门面
 
-     + 日志门面commons-logging
+     + 日志门面：commons-logging
 
        
 
-     + slf4j是Simple Logging Facade for Java，即简单日志门面，是目前较为流行的门面接口，用法和jcl一样，即使用slf4j自身提供的接口来打印日志。
+     + 日志门面：slf4j，slf4j是Simple Logging Facade for Java，即简单日志门面，是目前较为流行的门面接口，用法和jcl一样，即使用slf4j自身提供的接口来打印日志。
 
        ```java
        import org.slf4j.Logger;
@@ -3806,7 +3806,7 @@ public void testUpdateWithSet() {
 
    + “select”属性，用于指定执行某个SQL的ID
 
-   + “columns”属性，向执行的SQL语句传递参数。注意注意： 在处理组合键时，您可以使用***\*column= “{prop1=col1,prop2=col2}”\****这样的语法，设置多个列名传入到嵌套查询语句。这就会把*prop1*和*prop2*设置到目标嵌套选择语句的参数对象中。
+   + “columns”属性，向执行的SQL语句传递参数。注意注意： 在处理组合键时，您可以使用column= “{prop1=col1,prop2=col2}”这样的语法，设置多个列名传入到嵌套查询语句。这就会把*prop1*和*prop2*设置到目标嵌套选择语句的参数对象中。
 
      
 
@@ -4396,7 +4396,7 @@ public void testUpdateWithSet() {
    + pageNum = 2， pageSize = 5 【select * from t_car  limit 5,  5】
    + pageNum = 3， pageSize = 5 【select * from t_car  limit 10,  5】
    + ....
-   + pageNum = x， pageSize = y【select * from t_car  limit (pageSize -1 ) * y,  y】
+   + pageNum = x， pageSize = y【select * from t_car  limit (x-1 ) * y,  y】
 
 5. 代码举例
 
