@@ -36,7 +36,11 @@ export default {
       {
         text: '前端',
         children: [
-          { text: 'vue3', link: '/pages/frontend/vue3.md' }
+          { text: 'JavaScript', link: '/pages/frontend/javaScript.md' },
+          { text: 'vue2', link: '/pages/frontend/vue2.md' },
+          { text: 'Pinia', link: '/pages/frontend/pinia.md' },
+          { text: 'vue3', link: '/pages/frontend/vue3.md' },
+          { text: 'TypeScript', link: '/pages/frontend/typescript.md' },
         ]
       },
       {
@@ -44,10 +48,11 @@ export default {
         children: [
           { text: 'Android', link: '/pages/mobile/android.md' },
           { text: 'Flutter', link: '/pages/mobile/flutter.md' },
+          { text: '小程序', link: '/pages/mobile/mp.md' },
         ]
       },
       {
-        text: '后端',
+        text: 'Java后端',
         children: [
           { text: 'JavaSE', link: '/pages/backend/javaSE.md' },
           { text: 'JDK新特性', link: '/pages/backend/jdkNewFeature.md' },
@@ -65,6 +70,13 @@ export default {
         children: [
           { text: 'MySQL', link: '/pages/database/mysql.md' },
           { text: 'Redis', link: '/pages/database/redis.md' },
+        ]
+      },
+      {
+        text: '中间件',
+        children: [
+          { text: 'RabbitMQ', link: '/pages/middleware/rabbitMQ.md' },
+          { text: 'ElasticSearch', link: '/pages/middleware/elasticSearch.md' },
         ]
       },
       {

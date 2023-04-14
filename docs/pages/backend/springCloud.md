@@ -2039,7 +2039,7 @@ Spring Cloud
 
 ## SpringAMQP
 
-### SpringAMQP简介
+### SpringAMQP 简介
 
 1. Spring AMQP是基于AMQP协议定义的一套API规范，提供了模板来发送和接收消息。包含两部分，其中spring-amqp是基础抽象，spring-rabbit是底层的默认实现。
 2. Spring AMQP就像MyBatis封装JDBC一样，简化繁杂的开发过程一般，SpringAMQP则是基于RabbitMQ封装的一套模板，并且利用SpringBoot对其实现了自动装配，使用起来非常方便。
@@ -2377,7 +2377,82 @@ Spring Cloud
    
    ```
 
+
+
+### MessageConveter 消息转换器 
+
+1. 之前在向队列中发送的都是简单消息（一串字符串，字符序列），那么试想一下发送一个JavaBean、Map对象或者Object可以吗？因为在实际开发中传递消息并不是一个简简单单的字符串，而是使用JavaBean或者Map数据类型的场景较多。
+
+2. 向队列中发送一个Map或者JavaBean试试。
+
+   + 发布消息
+
+     ```java
+     @Test
+     public void testObjectQueue() {
+         HashMap<Object, String> data = new HashMap<>();
+         data.put("name", "ilovesshan");
+         data.put("time", LocalDateTime.now().toString());
+         rabbitTemplate.convertAndSend("object.exchange","objectKey", data);
+     }
+     ```
+
+     
+
+   + 消费消息
+
+     ```java
+     @RabbitListener(bindings = @QueueBinding(
+         value = @Queue("object.queue"),
+         exchange = @Exchange(value = "object.exchange", type = ExchangeTypes.DIRECT),
+         key = "objectKey"
+     ))
+     public void receiveTopicExchangeMessage1(HashMap<Object, String> message) {
+         System.out.println("消费者收到消息：【" + message + "】");
+     }
+     ```
+
+     ```tex
+     消费者收到消息：【{name=ilovesshan, time=2023-04-13T09:55:12.242}】
+     ```
+
+     
+
+   + 在RabbitMQ的控制台中可以发现，队列中的消息是一串字节，并不能直接看到我们发送的Map信息（JavaBean也一样），但是在消费者接收消息的时候可以正确获取到消息，那只能说明SpringBoot可能帮我们做了处理了。
+
+     ![image-20230413095613872](../../.vuepress/public/image-20230413095613872.png)
+
    
+
+3. Spring的对消息对象的处理是由org.springframework.amqp.support.converter.MessageConverter来处理的。而默认实现是SimpleMessageConverter，基于JDK的ObjectOutputStream完成序列化。
+
+4. 如果要修改只需要定义一个MessageConverter 类型的Bean即可。推荐用JSON方式序列化，步骤如下：
+
+   + 在consumer和publisher中引入依赖（也可以在父工程中引入）
+
+     ```xml
+     <dependency>
+         <groupId>com.fasterxml.jackson.core</groupId>
+         <artifactId>jackson-databind</artifactId>
+     </dependency>
+     ```
+
+     
+
+   + 在consumer和publisher中定义
+
+     ```java
+     @Bean
+     public MessageConverter jsonMessageConverter(){
+         return new Jackson2JsonMessageConverter(); 
+     }
+     ```
+
+   + 现在就可以清晰看到数据信息了
+
+     ![image-20230413101246065](../../.vuepress/public/image-20230413101246065.png)
+
+
 
 ## 环境依赖对照表
 
