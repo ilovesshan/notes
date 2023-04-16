@@ -355,39 +355,55 @@
    ```
 
    ```json
-   PUT /article
+   PUT /hotel
    {
-     "mappings": {
-       "properties": {
-         "code": {
-           "type": "integer"
-         },
-         "message": {
-           "type": "keyword",
-           "index": false
-         },
-         "data": {
+       "mappings": {
            "properties": {
-             "desc": {
-               "type": "text",
-               "analyzer": "ik_smart"
-             },
-             "title": {
-               "type": "text",
-               "analyzer": "ik_smart"
-             },
-             "url": {
-               "type": "keyword",
-               "index": false
-             },
-             "imagePath": {
-               "type": "keyword",
-               "index": false
-             }
+               "all": {
+                   "type": "text",
+                   "analyzer": "ik_smart"
+               },
+               "id": {
+                   "type": "keyword"
+               },
+               "name": {
+                   "type": "text",
+                   "analyzer": "ik_smart",
+                   "copy_to": "all"
+               },
+               "address": {
+                   "type": "text",
+                   "analyzer": "ik_smart"
+               },
+               "price": {
+                   "type": "float"
+               },
+               "score": {
+                   "type": "float"
+               },
+               "brand": {
+                   "type": "keyword"
+               },
+               "city": {
+                   "type": "keyword"
+               },
+               "star_name": {
+                   "type": "keyword"
+               },
+               "business": {
+                   "type": "text",
+                   "analyzer": "ik_smart",
+                   "copy_to": "all"
+               },
+               "location": {
+                   "type": "geo_point"
+               },
+               "pic": {
+                   "type": "keyword",
+                   "index": false
+               }
            }
-         }
        }
-     }
    }
    ```
 
@@ -589,6 +605,392 @@
 
      
 
+## ES 文档条件查询
+
+### 查询全部
+
+1. 虽然查询方式叫做查询全部，但是实际上是并没有将全部数据查询展示出来，应该是ES考虑到减少服务器压力和内存占用情况只查询了一部分数据作展示（前10条数据），但是也可以从返回的数据中（hits.total.value）得到一共有多少条数据。
+
+2. 查询举例
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "match_all": {}
+       }
+   }
+   ```
+
+   
+
+### 全文索引查询
+
+1. 全文检索查询一般是查询类型为Text的字段类型数据，利用分词器对用户输入内容分词，然后去倒排索引库中匹配，全文检索查询中查询类型有两种
+
+   + match_query，利用分词器对用户输入内容分词，然后去倒排索引库中匹配
+   + multi_match_query，和match_query类似，只不过multi_match_query允许查询多个字段，
+
+2. multi_match_query这种方式，字段越多会导致查询效率下降，可以考虑，将多个要进行分词的字段通过copy_to到同一个字段中，再使用match_query 查询类型会提高查询的效率。
+
+3. match_query 查询类型
+
+   ```json
+   
+   GET /hotel/_search
+   {
+       "query": {
+           "match": {
+               "all": "北京如家"
+           }
+       }
+   }
+   ```
+
+   
+
+4. multi_match_query 查询类型
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "multi_match": {
+               "query": "北京如家",
+               "fields": ["brand","name"]
+           }
+       }
+   }
+   ```
+
+   
+
+### 精确查询
+
+1. 根据词条进行精确匹配，一般是查找keyword、数值、日期、boolean等类型字段。所以不会对搜索条件分词，常见查询类型有两种：
+
+   + term：根据词条进行精确匹配
+   + range：根据值的范围查询
+
+2. term  查询类型
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "term": {
+               "brand": {
+                   "value": "如家"
+               }
+           }
+       }
+   }
+   ```
+
+   
+
+3. range  查询类型
+
+   + gte（ greater than or equal） 大于等于
+   + ge（greater than） 大于
+   + lte（greater than or equal） 小于等于
+   + le（less than） 小于
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "range": {
+               "price": {
+                   "gte": 100,
+                   "lte": 200
+               }
+           }
+       }
+   }
+   ```
+
+   
+
+### 地理坐标查询
+
+1. 地理坐标查询，一般使用场景就是根据两个经纬度点查询某个范围中的文档（geo_bounding_box查询类型）或者根据一个经纬度查询附近指定范围内的文档（geo_distance查询类型）。
+
+2. 演示geo_bounding_box，查询geo_point值落在某个矩形范围的所有文档
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "geo_bounding_box": {
+               "location": {
+                   "top_left": {
+                       "lat": 31.1,
+                       "lon": 121.5
+                   },
+                   "bottom_right": {
+                       "lat": 30.9,
+                       "lon": 121.7
+                   }
+               }
+           }
+       }
+   }
+   ```
+
+   
+
+3. 演示geo_distance，查询到指定中心点小于某个距离值的所有文档
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "geo_distance": {
+               "distance": "15km",
+               "location": "31.21,121.5"
+           }
+       }
+   }
+   ```
+
+   
+
+### 复合查询 - fuction score Query
+
+1. 复合（compound）查询：复合查询可以将其它简单查询组合起来，实现更复杂的搜索逻辑
+
+2. fuction score：算分函数查询，可以控制文档相关性算分，控制文档排名，elasticsearch中的相关性打分算法是什么？
+
+   + TF-IDF：在elasticsearch5.0之前，会随着词频增加而越来越大。
+   + BM25：在elasticsearch5.0之后，会随着词频增加而增大，但增长曲线会趋于水平。
+
+3. 算分函数查询的应用，比如京东上搜索手机，有些手机品牌会靠前有些则是靠后，这个排名实际上是可以人为控制的。
+
+   ![image-20230415101305077](../../.vuepress/public/image-20230415101305077.png)
+
+   
+
+4. function score query定义的三要素是什么？ 
+
+   + 过滤条件：哪些文档要加分
+   + 算分函数：如何计算function  score，常见的算分函数包含以下几类：
+     + weight：给一个常量值，作为函数结果（function score）
+     + field_value_factor：用文档中的某个字段值作为函数结果
+     + random_score：随机生成一个值，作为函数结果
+     + script_score：自定义计算公式，公式结果作为函数结果
+   + 加权方式：function score 与 query score（每个查询出来的文档根据特定的算法会计算出一个查询得分）如何运算，常见的加权方式包含以下几类：
+     + multiply：两者相乘。默认就是这个
+     + replace：用function score 替换 query score
+     + 其它：sum、avg、max、min
+
+5. 查询得分练习，查询“酒店”相关的文档，并且将如家的酒店排名靠前。
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "function_score": {
+               "query": {
+                   "match": {
+                       "all": "酒店"
+                   }
+               },
+               "functions": [
+                   {
+                       "filter": {
+                           "term": {
+                               "brand": "如家"
+                           }
+                       },
+                       "weight": 10
+                   }
+               ],
+               "boost_mode": "multiply"
+           }
+       }
+   }
+   ```
+
+### 复合查询 - Boolean Query
+
+1. 布尔查询是一个或多个查询子句的组合。子查询的组合方式有：
+
+   + must：必须匹配每个子查询，类似“与”
+   + filter：必须匹配，不参与算分
+   + should：选择性匹配子查询，类似“或”
+   + must_not：必须不匹配，不参与算分，类似“非”。
+
+2. 布尔查询的使用场景
+
+   + 京东购物搜索商品
+
+     ![image-20230415103727875](../../.vuepress/public/image-20230415103727875.png)
+
+   + 淘宝购物搜索商品
+
+     ![image-20230415103943208](../../.vuepress/public/image-20230415103943208.png)
+
+   
+
+3. 案例：搜索名字中包含如家，价格不高于400，坐标范围在31.22，121.5周围10km范围内的数据。
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "bool": {
+               "must": [
+                   {
+                       "match": {
+                           "brand": "如家"
+                       }
+                   }
+               ],
+               "must_not": [
+                   {
+                       "range": {
+                           "price": {
+                               "gt": 400
+                           }
+                       }
+                   }
+               ], 
+               "filter": [
+                   {
+                       "geo_distance": {
+                           "distance": "10km",
+                           "location": "31.22,121.5"
+                       }
+                   }
+               ]
+           }
+       }
+   }
+   ```
+
+
+
+### 查询条件排序
+
+1. es支持对查询结果进行排序的，默认情况下是根据相关度算分进行排序。可以排序的字段类型有：经纬度、数值、日期、keyword等等。
+
+2. 对酒店数据按照用户评价降序排序，评价相同的按照价格升序排序。
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "match_all": {}
+       },
+       "sort": [
+           {
+               "score": {
+                   "order": "desc"
+               },
+               "price": {
+                   "order": "asc"
+               }
+           }
+       ]
+   }
+   ```
+
+3. 查询指定经纬度范围内的酒店
+
+   + 经纬度查询地址：https://lbs.amap.com/demo/jsapi-v2/example/map/click-to-get-lnglat/。
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "match_all": {}
+       },
+       "sort": [
+           {
+               "_geo_distance": {
+                   "location":"31.252148,121.456302",
+                   "order": "asc",
+                   "unit": "km"
+               }
+           }
+       ]
+   }
+   ```
+
+   
+
+### 查询条件分页
+
+1. es查询结果中，默认会返回10条数据，我们可以通过配置（from + size）来自定义返回结果的数量，但是在es中有一个规定单次查询数量不能大于1000。
+
+2. 案例演示
+
+   + from：分页开始的位置（默认为0）
+   + size：期望获取的文档总数
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "match_all": {}
+       },
+       "from": 6,
+       "size": 3,
+       "sort": [
+           {
+               "price": {
+                   "order": "desc"
+               }
+           }
+       ]
+   }
+   ```
+
+3. 深度分页解决方案，针对深度分页ES提供了两种解决访问：
+
+   + search after：分页时需要排序，原理是从上一次的排序值开始，查询下一页数据。官方推荐使用的方式。
+   + scroll：原理将排序数据形成快照，保存在内存。官方已经不推荐使用。
+
+### 查询条件高亮
+
+1. 查询条件高亮的场景很常见，比如百度搜索：“SpringBoot”，搜索结果只要是关于“SpringBoot”字样的就会特殊高亮显式。
+
+   ![image-20230415120039630](../../.vuepress/public/image-20230415120039630.png)
+
+2. 查询结果高亮显示的原理
+
+   + 服务端对查询结果中的关键字添加标签
+   + 前端配置标签样式
+
+3. 查询结果高亮显示案例，查询酒店关键字（并将“酒店”关键字进行高亮显式）。
+
+   + 注意
+
+     + 查询高亮时，不能使用match_all查询类型进行查询，需要通过精确匹配matchl查询类型。
+
+     + 查询高亮的显示结果不会覆盖原文，而是在highlight.name的字段中。
+
+   ```json
+   GET /hotel/_search
+   {
+       "query": {
+           "match": {
+               "all": "酒店"
+           }
+       },
+       "highlight": {
+           "fields": {
+               "name": {
+                   "require_field_match": "false"
+               }
+           }
+       }
+   }
+   ```
+
+   
+
 ## RestClient 
 
 ### RestClient 简介
@@ -737,6 +1139,8 @@
 
 
 
+## RestClient 操作索引库
+
 ### RestClient 创建索引库
 
 ```java
@@ -779,6 +1183,8 @@ void testIndexExists() throws IOException {
 ```
 
 
+
+## RestClient 操作文档
 
 ### RestClient 新增文档
 
@@ -823,6 +1229,8 @@ void testSelectDocument() throws IOException {
 }
 ```
 
+
+
 ### RestClient 更新文档
 
 + 局部更新
@@ -866,6 +1274,8 @@ void testSelectDocument() throws IOException {
   }
   ```
 
+
+
 ### RestClient  删除文档
 
 ```java
@@ -880,3 +1290,538 @@ void testDeleteDocument() throws IOException {
 
 ### RestClient  批量导入文档
 
+1. 先批量从数据库中查询数，再将数据批量导入到es中
+
+   ```java
+   @Test
+   void testBatchAddDocument() throws IOException {
+       // 从数据库中查询出来的数据
+       List<Hotel> hotelList = service.list();
+   
+       BulkRequest request = new BulkRequest();
+       hotelList.forEach(hotel -> {
+           HotelDoc hotelDoc = new HotelDoc(hotel);
+   
+           // 将IndexRequest添加到BulkRequest中
+           request.add(
+               new IndexRequest("hotel")
+               .id(String.valueOf(hotelDoc.getId()))
+               .source(JSON.toJSONString(hotelDoc), XContentType.JSON)
+           );
+       });
+   
+       // 执行请求
+       client.bulk(request, RequestOptions.DEFAULT);
+   }
+   ```
+
+2. 查看es中全部数据的方法
+
+   ```
+   GET /hotel/_search
+   ```
+
+   
+
+## RestClient 查询文档
+
+### RestClient 查询全部
+
+```java
+@Test
+void testSelectAll() throws IOException {
+    SearchRequest request = new SearchRequest("hotel");
+    request.source().query(QueryBuilders.matchAllQuery());
+    SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+    handleResponse(searchResponse);
+}
+```
+
+```java
+/**
+     * 处理查询结果集
+     *
+     * @param searchResponse searchResponse
+     */
+private void handleResponse(SearchResponse searchResponse) {
+    SearchHit[] hits = searchResponse.getHits().getHits();
+    if (hits != null && hits.length > 0) {
+        System.out.println("总共查询到： " + searchResponse.getHits().getTotalHits().value + "条数据!");
+        for (SearchHit hit : hits) {
+            String source = hit.getSourceAsString();
+            HotelDoc hotelDoc = JSON.parseObject(source, HotelDoc.class);
+
+            // 处理查询结果高亮显式
+            Map<String, HighlightField> highlightFields = hit.getHighlightFields();
+            if (!CollectionUtils.isEmpty(highlightFields)) {
+                highlightFields.forEach((s, highlightField) -> {
+                    if (highlightField.fragments().length > 0) {
+                        String string = highlightField.fragments()[0].string();
+                        hotelDoc.setName(string);
+                    }
+                });
+            }
+            System.out.println("hotelDoc = " + hotelDoc);
+        }
+    } else {
+        System.out.println("总共查询到：0条数据!");
+    }
+}
+```
+
+### RestClient 全文索引查询
+
+1. 演示全文索引查询：match_query 查询类型
+
+   ```java
+   @Test
+   void testFullIndexWithMatch() throws IOException {
+       SearchRequest request = new SearchRequest("hotel");
+       request.source().query(QueryBuilders.matchQuery("all", "如家"));
+       SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+       handleResponse(searchResponse);
+   }
+   ```
+
+2. 演示全文索引查询：multi_match_query 查询类型
+
+   ```java
+   @Test
+   void testFullIndexWithMultiMatch() throws IOException {
+       SearchRequest request = new SearchRequest("hotel");
+       request.source().query(QueryBuilders.multiMatchQuery("上海","brand","business"));
+       SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+       handleResponse(searchResponse);
+   }
+   ```
+
+   
+
+### RestClient 经纬度查询
+
+1. 根据geo_diatance类型查询
+
+   ```java
+   @Test
+   void testLatLog() throws IOException {
+       SearchRequest request = new SearchRequest("hotel");
+       request.source().query(QueryBuilders.geoDistanceQuery("location").distance("15km").point(31.21,121.5));
+       SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+       handleResponse(searchResponse);
+   }
+   ```
+
+   
+
+2. 根据get_box类型查询
+
+   ```java
+   @Test
+   void testLatLogWithBoundingBox() throws IOException {
+       SearchRequest request = new SearchRequest("hotel");
+       GeoBoundingBoxQueryBuilder queryBuilder = QueryBuilders.geoBoundingBoxQuery("location");
+       queryBuilder.topLeft().reset(31.1, 121.5);
+       queryBuilder.bottomRight().reset(30.9, 121.7);
+       request.source().query(queryBuilder);
+       SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+       handleResponse(searchResponse);
+   }
+   ```
+
+### RestClient 复合查询 
+
+1. bool类型查询
+
+   ```java
+   @Test
+   void tesBool() throws IOException {
+       // 搜索名字中包含如家的酒店，价格不高于400，坐标范围在31.22，121.5周围10km范围内的数据。
+       SearchRequest request = new SearchRequest("hotel");
+       BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+       boolQueryBuilder.must(QueryBuilders.termQuery("name", "如家"));
+       boolQueryBuilder.mustNot(QueryBuilders.rangeQuery("price").gt(400));
+       boolQueryBuilder.filter(QueryBuilders.geoDistanceQuery("location").point(31.22, 121.5).distance("10km"));
+       request.source().query(boolQueryBuilder);
+       SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+       handleResponse(searchResponse);
+   }
+   ```
+
+2. function score 类型查询
+
+   ```java
+   @Test
+   void tesFunctionScore() throws IOException {
+       // 查询“酒店”相关的文档，并且将如家的酒店排名靠前。
+       SearchRequest request = new SearchRequest("hotel");
+   
+       // 过滤条件
+       TermQueryBuilder termQueryBuilder = new TermQueryBuilder("brand", "如家");
+   
+       WeightBuilder weightBuilder = new WeightBuilder();
+       // 算法函数
+       weightBuilder.setWeight(10);
+   
+       FunctionScoreQueryBuilder.FilterFunctionBuilder builder =
+           new FunctionScoreQueryBuilder.FilterFunctionBuilder(termQueryBuilder, weightBuilder);
+   
+       // 设置查询关于如家的酒店条件
+       MatchQueryBuilder matchQueryBuilder = QueryBuilders.matchQuery("all", "酒店");
+   
+       FunctionScoreQueryBuilder functionScoreQueryBuilder = new FunctionScoreQueryBuilder(
+           matchQueryBuilder, new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{builder}
+       );
+   
+       // 执行请求
+       request.source().query(functionScoreQueryBuilder);
+       SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+       handleResponse(searchResponse);
+   }
+   
+   ```
+
+   
+
+
+
+### RestClient 分页查询
+
+```java
+@Test
+void testPagination() throws IOException {
+    int pageNum = 1;
+    int pageSize = 10;
+
+    SearchRequest request = new SearchRequest("hotel");
+    request.source().query(QueryBuilders.matchAllQuery());
+    request.source().size(pageSize);
+    request.source().from((pageNum - 1) * pageSize);
+    SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+    handleResponse(searchResponse);
+}
+```
+
+
+
+### RestClient 高亮查询
+
+```java
+@Test
+void tesHighLight() throws IOException {
+    SearchRequest request = new SearchRequest("hotel");
+    request.source().query(QueryBuilders.termQuery("all", "如家"));
+    HighlightBuilder highlightBuilder = new HighlightBuilder();
+    highlightBuilder.field("name");
+    highlightBuilder.requireFieldMatch(false);
+    request.source().highlighter(highlightBuilder);
+
+    SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+    handleResponse(searchResponse);
+}
+```
+
+
+
+### RestClient 排序查询
+
+```java
+@Test
+void tesSort() throws IOException {
+    // 查询“酒店”相关的文档，并且将如家的酒店排名靠前。
+    SearchRequest request = new SearchRequest("hotel");
+
+    // 查询全部
+    request.source().query(QueryBuilders.matchAllQuery());
+
+    // 取前30条
+    request.source().from(0);
+    request.source().size(30);
+
+    // 排序
+    request.source().sort("price", SortOrder.ASC);
+
+    SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+    handleResponse(searchResponse);
+}
+```
+
+
+
+## ES 数据聚合
+
+### 数据聚合分类
+
+1. 数据聚合就是对查询的结构进行统计、分析和运算，数据聚合分类有三种：
+   + 桶（Bucket）聚合，用来对文档进行分组。
+     + TermAggregation：按照文档字段值分组
+     + Date Histogram：按照日期阶梯分组，例如一周为一组，或者一月为一组
+   + 度量（Metric）聚合，用来计算一些值，比如：最大值、最小值、平均值等
+     + Avg：求平均值
+     + Max：求最大值
+     + Min：求最小值
+     + Stats：同时求max、min、avg、sum等
+   + 管道（pipeline），其他聚合的结果为基础聚合。
+2. 参与聚合的字段类型必须是
+   + keyword
+   + 数值
+   + 日期
+   + 布尔
+
+### 桶（Bucket）聚合
+
+1. 查询有多少种酒店类型
+
+   + 聚合三要素：聚合名称、聚合类型、聚合字段。
+
+   ```json
+   GET /hotel/_search
+   {
+       "size": 0,  // 设置size为0，结果中不包含文档，只包含聚合结果
+       "aggs": {
+           "brandAgg": {
+               "terms": {
+                   "field": "brand",
+                   "size": 20 // 希望获取的聚合结果数量
+               }
+           }
+       }
+   }
+   ```
+
+   
+
+2. 查询有多少种酒店类型（自定义排序）
+
+   ```json
+   GET /hotel/_search
+   {
+       "size": 0,
+       "aggs": {
+           "brandAgg": {
+               "terms": {
+                   "field": "brand",
+                   "size": 20,
+                   "order": {
+                       "_count": "asc" // 默认按照_count字段进行降序排
+                   }
+               }
+           }
+       }
+   }
+   ```
+
+   
+
+3. 查询有多少种酒店类型（限制查询范围）
+
+   ```json
+   GET /hotel/_search
+   {
+       "size": 0,
+       // 限制查询范围
+       "query": {
+           "range": {
+               "price": {
+                   "lte": 200
+               }
+           }
+       }, 
+       "aggs": {
+           "brandAgg": {
+               "terms": {
+                   "field": "brand",
+                   "size": 20,
+                   "order": {
+                       "_count": "asc"
+                   }
+               }
+           }
+       }
+   }
+   ```
+
+   
+
+### 度量（Metric）聚合
+
+1. 查询酒店名称，并按照酒店名称评分降序排列
+
+   ```json
+   GET /hotel/_search
+   {
+       "size": 0,
+       "aggs": {
+           "brandAgg": {
+               "terms": {
+                   "field": "brand",
+                   "size": 20,
+                   "order": {
+                       // 按照 avg（平均值）降序排
+                       "scoreAgg.avg": "desc"
+                   }
+               },
+               "aggs": {
+                   "scoreAgg": {
+                       // stats 包含了 count、min、max、avg 、sum值
+                       "stats": {
+                           // 计算 score的相关值
+                           "field": "score"
+                       }
+                   }
+               }
+           }
+       }
+   }
+   ```
+
+   
+
+## ES 自动补全
+
+
+
+## ES 数据同步
+
+### 数据同步解决方案
+
+1. 当我们在开发中，对MySQL表中的数据做了更新时，为了保证ES中数据的一致性，那就需要将MySQL中的数据和ES中的数据做同步，下面介绍三种数据同步方案。
+
+2. 同步调用
+
+   + 代码耦合度较高
+   + 调用链执行时间过长，会造成响应速度慢问题
+
+   ![image-20230416141937127](../../.vuepress/public/image-20230416141937127.png)
+
+   
+
+3. 基于MQ	
+
+   + 代码耦合度较低
+   + 对于MQ的可靠性要求较高
+   + 使用MQ对于编码设计难度会高一点
+
+   ![image-20230416141944632](../../.vuepress/public/image-20230416141944632.png)
+
+   
+
+4. 基于MySQL的binlog
+
+   + 代码完全解耦
+   + 对于监听MysSQL的binlog的中间件要求较高
+
+   ![image-20230416141956999](../../.vuepress/public/image-20230416141956999.png)
+
+
+
+### 基于MQ实现数据同步
+
+1. 有两个微服务（hotel-admin-service）和（hotel-user-service），hotel-admin-service对酒店信息进行增删改查（MySQL），hotel-user-service（ES）负责展示酒店信息，提供给用户的门户网站，现要求hotel-admin-service对酒店数据更新之后，hotel-user-service中要做到数据同步。
+
+2. hotel-admin-service 和 hotel-user-service 引入MQ的依赖，并配置MQ地址信息。
+
+   ```xml
+   <dependency>
+       <groupId>org.springframework.boot</groupId>
+       <artifactId>spring-boot-starter-amqp</artifactId>
+   </dependency>
+   ```
+
+   ```yaml
+   spring:
+     rabbitmq:
+       addresses: 192.168.186.129
+       port: 5672
+       username: admin
+       password: 123456
+       virtual-host: /
+   ```
+
+3. hotel-admin-service 和 hotel-user-service中都添加一份关于MQ的常量信息。
+
+   ```java
+   public class HotelMqConstants {
+       // 交换机名称
+       public static final String HOTEL_EXCHANGE_NAME = "hotel.exchange.topic";
+   
+       // 队列名称
+       public static final String HOTEL_UPDATE_OR_INSERT_QUEUE_NAME = "hotel.updateOrInsert.queue";
+       public static final String HOTEL_DELETE_QUEUE_NAME = "hotel.delete.queue";
+   
+       // 消费者key
+       public static final String HOTEL_UPDATE_OR_INSERT_KEY = "hotel.updateOrInsert.key";
+       public static final String HOTEL_DELETE_QUEUE_KEY = "hotel.delete.key";
+   }
+   ```
+
+   
+
+4. hotel-user-service中定义交换机、队列以及消费者，并处理对应业务逻辑。
+
+   ```java
+   @Configuration
+   public class HotelMqConfiguration {
+   
+       //声明交换机和队列并进行绑定
+       @RabbitListener(bindings = @QueueBinding(
+           value = @Queue(HotelMqConstants.HOTEL_DELETE_QUEUE_NAME),
+           exchange = @Exchange(value = HotelMqConstants.HOTEL_EXCHANGE_NAME, type = ExchangeTypes.TOPIC),
+           key = HotelMqConstants.HOTEL_DELETE_QUEUE_KEY
+       ))
+       public void deleteListener(long id) {
+           // 调用Service 处理具体的业务
+           System.err.println("MQ 删除ID = " + id + "的数据");
+       }
+   
+   
+       //声明交换机和队列并进行绑定
+       @RabbitListener(bindings = @QueueBinding(
+           value = @Queue(HotelMqConstants.HOTEL_UPDATE_OR_INSERT_QUEUE_NAME),
+           exchange = @Exchange(value = HotelMqConstants.HOTEL_EXCHANGE_NAME, type = ExchangeTypes.TOPIC),
+           key = HotelMqConstants.HOTEL_UPDATE_OR_INSERT_KEY
+       ))
+       public void updateOrInsertListener(long id) {
+           // 调用Service 处理具体的业务
+           System.err.println("MQ 更新或者新增ID = " + id + "的数据");
+       }
+   }
+   ```
+
+5. hotel-admin-service中通过RabbitTemplate发送消息到MQ中。
+
+   ```java
+   @RestController
+   @RequestMapping("hotel")
+   public class HotelController {
+       @Autowired
+       private RabbitTemplate rabbitTemplate;
+   
+       @PostMapping
+       public void saveHotel(@RequestBody Hotel hotel) {
+           // 发送消息到MQ中
+           rabbitTemplate.convertAndSend(HotelMqConstants.HOTEL_EXCHANGE_NAME, HotelMqConstants.HOTEL_UPDATE_OR_INSERT_KEY, hotel.getId());
+           // 调用Service处理业务
+       }
+   
+       @PutMapping()
+       public void updateById(@RequestBody Hotel hotel) {
+           if (hotel.getId() == null) {
+               throw new InvalidParameterException("id不能为空");
+           }
+           // 发送消息到MQ中
+           rabbitTemplate.convertAndSend(HotelMqConstants.HOTEL_EXCHANGE_NAME, HotelMqConstants.HOTEL_UPDATE_OR_INSERT_KEY, hotel.getId());
+           // 调用Service处理业务
+       }
+   
+       @DeleteMapping("/{id}")
+       public void deleteById(@PathVariable("id") Long id) {
+           // 发送消息到MQ中
+           rabbitTemplate.convertAndSend(HotelMqConstants.HOTEL_EXCHANGE_NAME, HotelMqConstants.HOTEL_DELETE_QUEUE_KEY, id);
+           // 调用Service处理业务
+       }
+   }
+   ```
+
+
+
+## ES 集群
