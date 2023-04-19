@@ -1,4 +1,4 @@
-Spring Cloud
+# Spring Cloud
 
 ## 微服务导学
 
@@ -1336,7 +1336,7 @@ Spring Cloud
 
          
 
-       + 指定FeignClient字节码
+       + 指定FeignClient字节码（推荐）
 
          ```java
          @EnableFeignClients(clients = {UserClient.class})
@@ -1745,712 +1745,1189 @@ Spring Cloud
                  maxAge: 180
      ```
 
-     
 
 
 
-## MQ 
+## Setinel
 
-### 同步通信和异步通信
+### 雪崩问题以及解决方案
 
-1. 同步通信的概念
-   + 以数据块为单位进行发送,每个数据块包含多个字符,每个字符5-8bit。每个数据块前面加上起始标志,后面加上结束标志。
-2. 异步通信的概念
-   + 以字符为单位发送,一次传输一个字符,每个字符5- 8bit,字符前面有一个起始位,后面有1个或2个停止位。无字符发送时一直发送停止位。
-3. 同步和异步通信的举例
-   + 车道
-     + 【同步】只有一个车道，同一时刻只能有一辆车通过，剩余的车都在后面排队等。
-     + 【异步】有8个车道，同时可以通过8辆车，大大提高车流量。
-   + 取快递
-     + 【同步】送快递的面对面交给你，交互过程中双方都需要在同一时间内反应，否则会造成另一方阻塞等待。
-     + 【异步】送快递的放在门卫或快递箱，你自己去取，中间不是同步完成的。
+1. 什么是雪崩问题？
 
+   + 雪崩问题简单概括就是：微服务调用链中，某个服务出现的故障而导致整个微服务瘫痪的情况。
 
+2. 正常的服务调用链
 
-### 同步调用的优缺点
-
-1. 卡面学习的微服务中，基于feign的远程服务调用就是同步调用，那么同步调用有什么缺点呢？
-
-   ![image-20230412152824415](../../.vuepress/public/image-20230412152824415.png)
+   ![image-20230417160153572](../../.vuepress/public/image-20230417160153572.png)
 
    
 
-2. 同步调用缺点
+3. 非正常的微服务调用链（会造成雪崩问题）
 
-   + 性能下降，吞吐量低，调用者需要等待服务提供者响应，如果调用链过长则响应时间等于每次调用的时间之和。
-   + 系统资源浪费，调用链中的每个服务在等待响应过程中，不能释放请求占用的资源，高并发场景下会极度浪费系统资源。
-   + 耦合度高，每次加入新的需求，都要修改原来的代码。
-   + 级联失败，如果服务提供者出现问题，所有调用方都会跟着出问题，如同多米诺骨牌一样，迅速导致整个微服务群故障。
+   ![image-20230417160254599](../../.vuepress/public/image-20230417160254599.png)
 
-3. 同步调用优点
-
-   + 时效性较强，可以立即得到结果。
-   + 业务逻辑线较清晰。
-
-
-
-### 异步调用优缺点
-
-1. 异步调用通过事件发布和订阅者模式，用户调用下单接口后会发出一个事件到Broker中，这时候下单接口就可以给用户响应了，至于那些订阅该事件的服务受到通知后就慢慢去异步执行。
-
-   ![image-20230412154448456](../../.vuepress/public/image-20230412154448456.png)
+   ![image-20230417160316815](../../.vuepress/public/image-20230417160316815.png)
 
    
 
-2. 异步调用优点
+4. 服务故障引起雪崩问题的解决方案？
 
-   + 代码解耦，新增功能和消减功能无需修改源代码，只需要控制是否订阅该事件。
-   + 吞吐量提高，下单接口的吞吐量大大提高。
-   + 故障隔离，假如远程服务挂了其中一个并不会影响其他服务，也不会导致整个微服务群故障。
-   + 流量削峰，高并发下大量的请求信息会形成一个队列堆积在Broker中，由Broker从队列中取出消息通知给订阅者。
+   + 超时处理：设定超时间，请求超过一定时间没有响应就返回错误信息，不会无休止的等待。
+   + 舱壁模式（线程隔离）：为每一个业务规定能使用的线程数，避免Tomcat中线程池资源耗尽，因此这种手段也叫做线程隔离。
+   + 熔断降级：由断路器统计业务执行的异常比，当异常比超过设定的阈值就会熔断该业务，拦截访问该业务的一切请求。
 
-3. 异步调用缺点
+5. 流量突增引起服务故障的解决方案?
 
-   + 依赖于Broker的可靠性、安全性、吞吐能力。
-   + 架构复杂了，业务没有明显的流程线，不好追踪管理。
+   + 流量控制：限制业务访问的QPS，避免服务因流量的突增二发生故障。
+     + QPS概念：Queries Per Second，一台服务器每秒能够处理的查询次数。用户发起查询请求到服务器做出响应这算一次，一秒内用户完成了10次查询请求，那此时服务器QPS就是10。
 
+### Sentinel 和 Hystrix对比
 
+1. Sentinel 
+   + Sentinel 是阿里中间件团队研发的面向分布式服务架构的轻量级高可用流量控制组件，于 2018 年 7 月正式开源。Sentinel 主要以流量为切入点，从流量控制、熔断降级、系统负载保护等多个维度来帮助用户提升服务的稳定性。
+   + Sentinel 目前已经针对 Servlet、Dubbo、Spring Boot/Spring Cloud、gRPC 等进行了适配，用户只需引入相应依赖并进行简单配置即可非常方便地享受 Sentinel 的高可用流量防护能力。未来 Sentinel 还会对更多常用框架进行适配，并且会为 Service Mesh 提供集群流量防护的能力。
+2. Hystrix
+   + Spring Cloud Hystrix 是基于 Netflix 公司的开源组件 Hystrix 实现的，它提供了熔断器功能，能够有效地阻止分布式微服务系统中出现联动故障，以提高微服务系统的弹性。Spring Cloud Hystrix 具有服务降级、服务熔断、线程隔离、请求缓存、请求合并以及实时故障监控等强大功能。
+   + Hystrix [hɪst'rɪks]，中文含义是豪猪，豪猪的背上长满了棘刺，使它拥有了强大的自我保护能力。而 Spring Cloud Hystrix 作为一个服务容错与保护组件，也可以让服务拥有自我保护的能力，因此也有人将其戏称为“豪猪哥”。
 
-### MessageQueue
-
-1. MessageQueue意思就是消息队列，用来存放消息的队列，也就是事件驱动架构中的Broker。
-
-2. 市面上常用的MQ有四个，分别是：RabbitMQ、ActiveMQ、RocketMQ、Kafka。
-
-   |            | RabbitMQ               | ActiveMQ                           | RocketMQ   | Kafka      |
-   | ---------- | ---------------------- | ---------------------------------- | ---------- | ---------- |
-   | 公司/社区  | Rabbit                 | Apahce                             | 阿里       | Apahce     |
-   | 开发语言   | Erlang                 | Java                               | Java       | Java&Scala |
-   | 协议支持   | AMQP、XMPP、SMTP、STMP | OpenEire、STOPMP、REST、XMPP、AMQP | 自定义协议 | 自定义协议 |
-   | 可用性     | 高                     | 一般                               | 高         | 高         |
-   | 吞吐量     | 一般                   | 差                                 | 高         | 非常高     |
-   | 消息延迟   | 微秒级                 | 毫秒级                             | 毫秒级     | 毫秒内     |
-   | 消息可靠性 | 高                     | 一般                               | 高         | 一般       |
-
-
-
-## RabbitMQ
-
-### RabbitMQ 安装
-
-1. RabbitMQ 是一个基于Erlang语言开发的消息中间件，RabbitMQ 官网地址：https://www.rabbitmq.com/
-
-2. 在CentOS中通过Docker安装RabbitMQ 
-
-   + 在线拉取镜像
-
-     ```shell
-     docker pull rabbitmq:3-management
-     ```
-
-     
-
-   + 从本地加载
-
-     ```shell
-     docker load -i mq.tar
-     ```
-
-     
-
-   + 安装MQ
-
-     ```shell
-     docker run \
-      -e RABBITMQ_DEFAULT_USER=admin \
-      -e RABBITMQ_DEFAULT_PASS=123456 \
-      --name mq \
-      --hostname mq1 \
-      -p 15672:15672 \
-      -p 5672:5672 \
-      -d \
-      rabbitmq:3-management
-     ```
-
-     
-
-### RabbitMQ结构模型
-
-1. RabbitMQ的工作结构
-
-   ![image-20230412182702872](../../.vuepress/public/image-20230412182702872.png)
-
-   
-
-2. RabbitMQ中的几个概念
-
-   + channel：操作MQ的工具
-   + exchange：路由消息到队列中
-   + queue：缓存消息
-   + virtual host：虚拟主机，是对queue、exchange等资源的逻辑分组
+|                | Sentinel                                       | Hystrix                       |
+| -------------- | ---------------------------------------------- | ----------------------------- |
+| 隔离策略       | 信号量隔离                                     | 线程池隔离/信号量隔离         |
+| 熔断降级策略   | 基于慢调用比例或异常比例                       | 基于失败比率                  |
+| 实时指标实现   | 滑动窗口                                       | 滑动窗口（基于 RxJava）       |
+| 规则配置       | 支持多种数据源                                 | 支持多种数据源                |
+| 扩展性         | 多个扩展点                                     | 插件的形式                    |
+| 基于注解的支持 | 支持                                           | 支持                          |
+| 限流           | 基于 QPS，支持基于调用关系的限流               | 有限的支持                    |
+| 流量整形       | 支持慢启动、匀速排队模式                       | 不支持                        |
+| 系统自适应保护 | 支持                                           | 不支持                        |
+| 控制台         | 开箱即用，可配置规则、查看秒级监控、机器发现等 | 不完善                        |
+| 常见框架的适配 | Servlet、Spring Cloud、Dubbo、gRPC 等          | Servlet、Spring Cloud Netflix |
 
 
 
-### 常见消息模型
+### Sentinel 介绍和安装
 
-1. MQ的[官方文档](https://www.rabbitmq.com/getstarted.html)中给出了5个MQ的Demo示例，对应了几种不同的用法
-   + 基本消息队列（BasicQueue）和工作消息队列（WorkQueue）。
-   + 发布订阅（Publish、Subscribe），又根据交换机类型不同分为三种：
-     + Fanout Exchange：广播
-     + Direct Exchange：路由
-     + Topic Exchange：主题
+1. Sentinel是阿里巴巴开源的一款微服务流量控制组件。官网地址：https://sentinelguard.io/zh-cn/index.html
 
-### 基础消息队列
+2. Sentinel 具有以下特征
 
-1. 基础消息队列模型
+   + 丰富的应用场景：Sentinel 承接了阿里巴巴近 10 年的双十一大促流量的核心场景，例如秒杀（即突发流量控制在系统容量可以承受的范围）、消息削峰填谷、集群流量控制、实时熔断下游不可用应用等。
+   + 完备的实时监控：Sentinel 同时提供实时的监控功能。您可以在控制台中看到接入应用的单台机器秒级数据，甚至 500 台以下规模的集群的汇总运行情况。
+   + 广泛的开源生态：Sentinel 提供开箱即用的与其它开源框架/库的整合模块，例如与 Spring Cloud、Dubbo、gRPC 的整合。您只需要引入相应的依赖并进行简单的配置即可快速地接入 Sentinel。
+   + 完善的 SPI 扩展点：Sentinel 提供简单易用、完善的 SPI 扩展接口。您可以通过实现扩展接口来快速地定制逻辑。例如定制规则管理、适配动态数据源等。
 
-   ![image-20230412183342869](../../.vuepress/public/image-20230412183342869.png)
+3. 安装 Sentinel 
 
-   
+   + 先去Github上下载Jar包，Github地址：https://github.com/alibaba/Sentinel，案例使用：[sentinel-dashboard-1.8.6.jar](https://github.com/alibaba/Sentinel/releases/download/1.8.6/sentinel-dashboard-1.8.6.jar)。
 
-2. 基础消息队列涉及的角色
-
-   + Publisher：消息发布者，负责将消息推送到队列中。
-
-   + queue：消息队列，负责接收并缓存消息。
-
-   + Consumer：消息消费者，负责处理消息队列中的消息。
-
-     
-
-3. 通过基础消息队列实现“hello, rabbitmq!”案例。
-
-   + 新建父工程（rabbitmq）并添加相关依赖，再建两个子工程（consumer和publisher）分别编写SpringBoot的启动类。
-
-     ```xml
-     <dependencies>
-         <!-- lombok -->
-         <dependency>
-             <groupId>org.projectlombok</groupId>
-             <artifactId>lombok</artifactId>
-         </dependency>
-         <!--AMQP依赖，包含RabbitMQ-->
-         <dependency>
-             <groupId>org.springframework.boot</groupId>
-             <artifactId>spring-boot-starter-amqp</artifactId>
-         </dependency>
-         <!--单元测试-->
-         <dependency>
-             <groupId>org.springframework.boot</groupId>
-             <artifactId>spring-boot-starter-test</artifactId>
-         </dependency>
-     </dependencies>
-     ```
-
-     
-
-   + publisher模块中编写单元测试代码
+   + 没错，下载下来的Sentinel就是一个Jar包（SpringBoot构建的WEB应用），也就是我们只需要启动这个Jar包就ok了。
 
      ```java
-     public class PublisherTest {
-         @Test
-         public void testSendMessage() throws IOException, TimeoutException {
-             // 1.建立连接
-             ConnectionFactory factory = new ConnectionFactory();
-             // 1.1.设置连接参数，分别是：主机名、端口号、vhost、用户名、密码
-             factory.setHost("192.168.186.129");
-             factory.setPort(5672);
-             factory.setVirtualHost("/");
-             factory.setUsername("admin");
-             factory.setPassword("123456");
-             // 1.2.建立连接
-             Connection connection = factory.newConnection();
-     
-             // 2.创建通道Channel
-             Channel channel = connection.createChannel();
-     
-             // 3.创建队列
-             String queueName = "simple.queue";
-             channel.queueDeclare(queueName, false, false, false, null);
-     
-             // 4.发送消息
-             String message = "hello, rabbitmq!";
-             channel.basicPublish("", queueName, null, message.getBytes());
-             System.out.println("发送消息成功：【" + message + "】");
-     
-             // 5.关闭通道和连接
-             channel.close();
-             connection.close();
-     
-         }
-     }
+     java -jar ./sentinel-dashboard-1.8.6.jar
      ```
 
-     
+   + Sentinel默认的端口是：8088，默认的用户名和密码都是：sentinel
 
-   + consumer模块中编写单元测试代码
+     + 通过 -Dserver.port=8888 修改默认端口号
+     + 通过 -Dsentinel.dashboard.auth.username=admin 修改默认用户名
+     + 通过 -Dsentinel.dashboard.auth.password=123456 修改默认密码
 
-     ```java
-     public class ConsumerTest {
-     
-         public static void main(String[] args) throws IOException, TimeoutException {
-             // 1.建立连接
-             ConnectionFactory factory = new ConnectionFactory();
-             // 1.1.设置连接参数，分别是：主机名、端口号、vhost、用户名、密码
-             factory.setHost("192.168.186.129");
-             factory.setPort(5672);
-             factory.setVirtualHost("/");
-             factory.setUsername("admin");
-             factory.setPassword("123456");
-             // 1.2.建立连接
-             Connection connection = factory.newConnection();
-     
-             // 2.创建通道Channel
-             Channel channel = connection.createChannel();
-     
-             // 3.创建队列
-             String queueName = "simple.queue";
-             channel.queueDeclare(queueName, false, false, false, null);
-     
-             // 4.订阅消息
-             channel.basicConsume(queueName, true, new DefaultConsumer(channel){
-                 @Override
-                 public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                     // 5.处理消息
-                     String message = new String(body);
-                     System.out.println("接收到消息：【" + message + "】");
-                 }
-             });
-             System.out.println("等待接收消息。。。。");
-         }
-     }
+     ```
+     java -Dserver.port=8888 -Dsentinel.dashboard.auth.username=admin -Dsentinel.dashboard.auth.password=123456 -jar ./sentinel-dashboard-1.8.6.jar
      ```
 
-   + 分别运行publisher和consumer单元测试就可以看到效果了~~
+4. 访问：http://localhost:8888/#/dashboard/home
 
-4. 基本消息队列的消息发送流程
+### 微服务整合Sentinel 
 
-   + 建立connection
-   + 创建channel
-   + 利用channel声明队列
-   + 利用channel向队列发送消息
+1. 搭建微服务模块请参考前面章节
 
-5. 基本消息队列的消息接收流程
+   ```
+   -- springcloud03-sentinel
+       -- orderservice 订单服务
+       -- userservice 用户服务
+       -- gateway 网关
+       -- feign-api 远程调用服务
+   ```
 
-   + 建立connection
-   + 创建channel
-   + 利用channel声明队列
-   + 定义consumer的消费行为handleDelivery()
-   + 利用channel将消费者与队列绑定
+   ```
+   访问：http://localhost:10010/orders/101
+   订单服务 --> 用户服务
+   ```
 
+   
 
-
-
-
-## SpringAMQP
-
-### SpringAMQP 简介
-
-1. Spring AMQP是基于AMQP协议定义的一套API规范，提供了模板来发送和接收消息。包含两部分，其中spring-amqp是基础抽象，spring-rabbit是底层的默认实现。
-2. Spring AMQP就像MyBatis封装JDBC一样，简化繁杂的开发过程一般，SpringAMQP则是基于RabbitMQ封装的一套模板，并且利用SpringBoot对其实现了自动装配，使用起来非常方便。
-
-### Basic Queue 简单队列模型
-
-1. 添加依赖（publisher和consumer都要添加，也可以在父工程中添加）。
+2. 引入sentinel依赖
 
    ```xml
-   <!--AMQP依赖，包含RabbitMQ-->
    <dependency>
-       <groupId>org.springframework.boot</groupId>
-       <artifactId>spring-boot-starter-amqp</artifactId>
+       <groupId>com.alibaba.cloud</groupId>
+       <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
    </dependency>
    ```
 
-2. 编写配置文件（publisher和consumer都要编写）
+   
+
+3. 配置Sentinel
 
    ```yaml
    spring:
-     rabbitmq:
-       # 主机地址
-       addresses: 192.168.186.129
-       # 端口
-       port: 5672
-       # 虚拟主机地址
-       virtual-host: /
-       # 用户名
-       username: admin
-       # 密码
-       password: 123456
+     application:
+       name: orderservice
+     cloud:
+       nacos:
+         server-addr: localhost:8848
+       sentinel:
+         transport:
+           dashboard: localhost:8080
    ```
-
-3. 在publisher模块中编写代码，发布消息
-
-   ```java
-   @RunWith(SpringRunner.class)
-   @SpringBootTest
-   public class SpringAmqpConsumerTest {
-   
-       @Resource
-       private RabbitTemplate rabbitTemplate;
-   
-       @Test
-       public void test() {
-           rabbitTemplate.convertAndSend("simple.queue", "[" + System.currentTimeMillis() + "] Hello SpringAMQP~~~");
-       }
-   }
-   ```
-
-4. 在consumer模块中编写代码，消费消息
-
-   ```java
-   @Component
-   public class SpringAmqpConsumer {
-       @RabbitListener(queues = "simple.queue")
-       public void receive(String message) {
-           System.out.println("接收到消息：【" + message + "】");
-       }
-   }
-   ```
-
-
-
-### Work Queue 工作队列模型
-
-1. Work queue，工作队列，可以提高消息处理速度，避免队列消息堆积。
-
-   + 特点
-     + 多个消费者绑定到一个队列，同一条消息只会被一个消费者处理。
-     + 通过设置prefetch来控制消费者预取的消息数量。
-
-   ![image-20230412194852166](../../.vuepress/public/image-20230412194852166.png)
 
    
 
-2. 模拟实现一个工作队列模型，一个队列绑定多个消费者。
+4. 访问微服务的任意端点，触发sentinel监控。访问：http://localhost:8888/#/dashboard/home
 
-   + 定义消息发布者，每秒发送50条消息。
+   ![image-20230417182526870](../../.vuepress/public/image-20230417182526870.png)
+
+
+
+
+
+## Sentinel 限流
+
+
+
+### 簇点链路概念
+
+1. 簇点链路：项目内的调用链路，链路中被监控的每一个接口就是一个资源，默认情况下sentilen会监控SpringMVC的每一个端点，因此SpringMVC中的每一个端点就是一个调用链路中的资源。
+
+2. 流控（流量控制）、熔断等都是针对簇点链路中的资源来设置的，因此我们可以点击对应资源后面的按钮来设置规则
+
+   ![image-20230417191500975](../../.vuepress/public/image-20230417191500975.png)
+
+
+
+### 流控模式介绍
+
+1. 直连模式：统计当前请求资源，触发阈值时对当前资源直接限流，直连模式也是流控模式默认模式。
+2. 关联模式：统计与当前资源相关的另一个资源，当触发阈值时，对当前资源限流。
+3. 链路模式：统计从指定链路访问到本资源的请求，当触发阈值时，对指定链路限流。
+
+### 流控 直联模式
+
+1. 需求，给 /orders/{id} 资源设置流量控制规则，要求OPS不能超过5，然后利用Jemtter测试。
+
+2. 设置流量控制规则
+
+   ![image-20230417191929493](../../.vuepress/public/image-20230417191929493.png)
+
+   
+
+3. Jemtter测试
+
+   + 以下配置是：两秒发送20次请求，QPS是10
+
+     ![image-20230417192206043](../../.vuepress/public/image-20230417192206043.png)
+
+   
+
+   + 观察结果可以发现，部分请求已经被限流了。Blocked by Sentinel (flow limiting)
+
+     ![image-20230417192325054](../../.vuepress/public/image-20230417192325054.png)
+
+
+
+### 流控 关联模式
+
+1. 关于流控的关联模式，举个例子：
+
+   + 有订单支付和订单查询两个业务接口，比如用户支付时需要修改订单状态，同时用户要查询订单。查询和修改操作会争抢数据库锁，产生竞争。
+   + 业务需求是：优先支付和更新订单状态，当订单支付业务触发阈值时，对订单查询业务做限流。
+
+2. 实现关联模式，模拟订单支付和订单查询业务。
+
+   + 在orderservice中新一个订单支付接口（模拟）。
 
      ```java
-     @RunWith(SpringRunner.class)
-     @SpringBootTest
-     public class SpringAmqpConsumerTest {
-     
-         @Resource
-         private RabbitTemplate rabbitTemplate;
-     
-         @Test
-         public void testWorkQueue() throws InterruptedException {
-             for (int i = 1; i <= 50; i++) {
-                 rabbitTemplate.convertAndSend("simple.queue", "[" + i + "] Hello SpringAMQP~~~");
-                 // 避免消息太快
-                 Thread.sleep(20);
-             }
+     public class OrderController {
+         @GetMapping("/orders/pay")
+         public String orderPay() {
+             return "订单支付成功";
          }
      }
      ```
 
-   + 定义两个消息监听者，消费者1每秒处理50条消息，消费者2每秒处理5条消息。
+   + 在簇点链路中，进行高级配置，当访问/orders/pay时阈值达到10，就会对orders/{id}限流，避免影响/orders/pay业务。
 
-     ```java
-     @Component
-     public class SpringAmqpConsumer {
-         @RabbitListener(queues = "simple.queue")
-         public void receiveBasicWorkMessage1(String message) throws InterruptedException {
-             System.out.println("消费者1收到消息：【" + message + "】 ===> " + LocalDateTime.now());
-             Thread.sleep(25);
-         }
+     ![image-20230417195715911](../../.vuepress/public/image-20230417195715911.png)
+
      
-         @RabbitListener(queues = "simple.queue")
-         public void receiveBasicWorkMessage2(String message) throws InterruptedException {
-             System.err.println("消费者2收到消息：【" + message + "】 ===> " + LocalDateTime.now());
-             Thread.sleep(100);
-         }
-     }
-     ```
 
-3. 消费预取限制
+   + 使用jemter测试
+
+     + 100秒访问1000次，也就是QPS是10，已经超过设定的阈值了。
+
+       ![image-20230417194833098](../../.vuepress/public/image-20230417194833098.png)
+
+     + 在这期间，/orders/pay接口的相关业务不会受到影响，但是如果访问http://localhost:10010/orders/102（订单查询接口），会发现已经被限流了。
+
+       ![image-20230417200022187](../../.vuepress/public/image-20230417200022187.png)
+
+   
+
+3. 关联模式使用特点
+
+   + 有两个竞争关系的资源
+   + 其中一个优先级高，另一个优先级低。
+
+   
+
+### 流控 链路模式
+
+1. 统计从指定链路访问到本资源QPS，超过阈值时对指定链路做限流。
+
+   + 【controller】 /orders/pay   -> 【service】selectOrderInfo
+   + 【controller】 /orders/create   -> 【service】selectOrderInfo
+
+2. controller修改 /orders/pay 并且新增  /orders/create 业务接口
+
+   ```java
+   public class OrderController {
+       private final OrderService orderService;
+   
+       @GetMapping("/orders/pay")
+       public String payOrder() {
+           // 查询订单信息
+           orderService.selectOrderInfo();
+           return "订单支付成功";
+       }
+   
+       @GetMapping("/orders/create")
+       public String createOrder() {
+           // 查询订单信息
+           orderService.selectOrderInfo();
+           return "订单创建成功";
+       }
+   }
+   ```
+
+3. Sentinel默认只标记Controller中的方法为资源，如果要标记其它方法，需要利用@SentinelResource注解
+
+   ```java
+   public class OrderServiceImpl implements OrderService {
+       @SentinelResource("orderInfo")
+       @Override
+       public void selectOrderInfo() {
+           System.out.println("查询订单详情");
+       }
+   }
+   ```
+
+4. Sentinel默认会将Controller方法做context整合，导致链路模式的流控失效，需要修改application.yml，添加配置
 
    ```yaml
    spring:
-     rabbitmq:
-       listener:
-         simple:
-           prefetch: 1 # 每次只能获取一条消息，处理完成才能获取下一个消息
+     cloud:
+       sentinel:
+         web-context-unify: false # 关闭context整合
    ```
 
-   
+5. 可以发现现在链路并没有被context整合了，两个orderinfo链路都是一样的，修改其中一个即可。
 
-### 发布订阅模式
+   ![image-20230417202254954](../../.vuepress/public/image-20230417202254954.png)
 
-1. 发布订阅模式和之前案例区别就是允许将同一消息发送给多个消费者。实现方式是加入了exchange（交换机）。
-
-2. 常见exchange类型包括：Fanout（广播）、Direct（路由）、Topic（主题）。
-
-   ![image-20230412203451291](../../.vuepress/public/image-20230412203451291.png)
+   ![image-20230417202403366](../../.vuepress/public/image-20230417202403366.png)
 
    
 
-3. 注意：exchange负责消息路由，而不是存储，路由失败则消息丢失
+6. jemter测试
 
-### Fanout Exchange 模型
+   + 50秒200次，QPS值为：4
 
-1. 在consumer服务中，利用代码声明队列、交换机，并将两者绑定。
+     ![image-20230417202721262](../../.vuepress/public/image-20230417202721262.png)
 
-   ```java
-   @Configuration
-   public class FanoutExchangeConfiguration {
-   
-       // 创建交换机
-       @Bean
-       public FanoutExchange fanoutExchange() {
-           return new FanoutExchange("ilovesshan.fanout");
-       }
-   
-   
-       // 创建队列1
-       @Bean
-       public Queue queue1() {
-           return new Queue("ilovesshan.queue1");
-       }
-   
-       // 创建队列2
-       @Bean
-       public Queue queue2() {
-           return new Queue("ilovesshan.queue2");
-       }
-   
-       // 将队列1绑定到交换机上
-       @Bean
-       public Binding bindingQueue1(Queue queue1, FanoutExchange fanoutExchange) {
-           return BindingBuilder.bind(queue1).to(fanoutExchange);
-       }
-   
-       // 将队列2绑定到交换机上
-       @Bean
-       public Binding bindingQueue2(Queue queue2, FanoutExchange fanoutExchange) {
-           return BindingBuilder.bind(queue2).to(fanoutExchange);
-       }
-   }
-   ```
+   + orders/pay
+
+     ![image-20230417202850733](../../.vuepress/public/image-20230417202850733.png)
+
+   + orders/create
+
+     ![image-20230417202705695](../../.vuepress/public/image-20230417202705695.png)
+
+
+
+### 流控效果 快速失败
+
+1. 流控效果 默认就是快速失败，超过阈值时直接抛出异常。
+
+### 流控效果 Warm Up
+
+1. Warm Up又叫做预热模式，是应对冷启动模式的一种方案，初始阈值是threshold/coldfactor，持续指定时常之后，逐渐提高到threshold值，coldfactor默认值是3。
+
+2. 假如设置QPS的threshold值为10，预热时间为3秒，那么初始阈值就是 10/3，也就是3，然后在5秒后逐渐增长到10。
+
+3. 需求：给/orders/{id}这个资源设置限流，最大QPS为10，利用warm up效果，预热时长为5秒。
+
+   ![image-20230417221810856](../../.vuepress/public/image-20230417221810856.png)
 
    
 
-2. 在consumer服务中，编写两个消费者方法，分别监听fanout.queue1和fanout.queue2。
+4. jmeter测试
 
-   ```java
-   @Component
-   public class SpringAmqpConsumer { 
-       @RabbitListener(queues = "ilovesshan.queue1")
-       public void receiveFanoutExchangeMessage1(String message) {
-           System.out.println("消费者1收到消息：【" + message + "】 ===> " + LocalDateTime.now());
-       }
-   
-       @RabbitListener(queues = "ilovesshan.queue2")
-       public void receiveFanoutExchangeMessage2(String message) {
-           System.out.println("消费者2收到消息：【" + message + "】 ===> " + LocalDateTime.now());
-       }
-   }
-   
-   ```
+   + 20秒200次，QPS值为：10
 
-   
+     ![image-20230417221848174](../../.vuepress/public/image-20230417221848174.png)
 
-3. 在publisher中编写测试方法，向ilovesshan.fanout发送消息
+   + 随着预热时长递增，请求阈值也逐渐扩大
 
-   ```java
-   @RunWith(SpringRunner.class)
-   @SpringBootTest
-   public class SpringAmqpConsumerTest {
-       @Resource
-       private RabbitTemplate rabbitTemplate;
-   
-       @Test
-       public void testFanoutExchange(){
-           // 发送消息，参数分别是：交互机名称、RoutingKey（暂时为空）、具体消息
-           rabbitTemplate.convertAndSend("ilovesshan.fanout", "", " Hello every one ~~~");
-       }
-   }
-   ```
+     ![image-20230417222342271](../../.vuepress/public/image-20230417222342271.png)
+
+### 流控效果 排队等候
+
+1. 快速失败和Warm Up当超过请求阈值时会直接抛出异常。而排队等候则是让超出阈值的所有请求进入队列中，按照阈值允许的时间间隔依次执行，后来的请求必须等待前面请求执行完成，如果请求预期的等待时长超过最大时长，则会被拒绝。
+
+2. 例如：QPS = 5，意味着每200ms处理一个队列中的请求；timeout = 2000，意味着预期等待超过2000ms的请求会被拒绝并抛出异常。
+
+   ![image-20230417225355190](../../.vuepress/public/image-20230417225355190.png)
 
    
 
-### Direct Exchange 模型
+1. 需求：给/order/{id}这个资源设置限流，最大QPS为10，利用排队的流控效果，超时时长设置为5s。
 
-1. Direct Exchange可以将消息发送给指定的消费者，publisher服务通过routingKey和consumer服务的bingdingKey做绑定，从而来实现消息发送给指定消费者。
 
-2. 创建交换机、队列、消费者、绑定队列和交换机时，不再使用@Bean的方式申明Bean了，因为这种方式太繁琐了，我们可以使用@RabbitListener注解来完成这些Bean的声明及关系绑定，还有别忘记了给消费者添加一个“bindingKey”。
 
-   ```java
-   @Component
-   public class SpringAmqpConsumer {
-       @RabbitListener(bindings = @QueueBinding(
-           // 创建队列
-           value = @Queue("ilovesshan.queue1"),
-           // 创建交换机(默认类型就是ExchangeTypes.DIRECT)
-           exchange = @Exchange(name = "ilovesshan.direct", type = ExchangeTypes.DIRECT),
-           // 设置 绑定key
-           key = {"news", "weather"}
-       ))
-       public void receiveDirectExchangeMessage1(String message) {
-           System.out.println("消费者1收到消息：【" + message + "】 ===> " + LocalDateTime.now());
-       }
-   
-   
-       @RabbitListener(bindings = @QueueBinding(
-           value = @Queue("ilovesshan.queue2"),
-           exchange = @Exchange(name = "ilovesshan.direct"),
-           key = {"news", "people"}
-       ))
-       public void receiveDirectExchangeMessage2(String message) {
-           System.err.println("消费者2收到消息：【" + message + "】 ===> " + LocalDateTime.now());
-       }
-   }
-   ```
+### 热点参数限流
+
+1. 之前的限流规则是统计访问某个资源的所有请求，判断是否超过QPS阈值。而热点参数限流是统计参数值相同的请求，判断是否超过了OPS阈值。
+
+   ![image-20230418075125937](../../.vuepress/public/image-20230418075125937.png)
 
    
 
-3. 在publisher服务中发布消息
+2. 对/orders/{id}这个资源做热点限流，参数索引从0开始（第一个参数），规定每秒相同参数的请求不能超过5。
 
-   ```java
-   @RunWith(SpringRunner.class)
-   @SpringBootTest
-   public class SpringAmqpConsumerTest {
-   
-       @Resource
-       private RabbitTemplate rabbitTemplate;
-       @Test
-       public void testDirectExchange() {
-           // key包含weather的消费者可以收到消息（1个）
-           rabbitTemplate.convertAndSend("ilovesshan.direct", "weather", " Hello every one ~~~");
-   
-           // key包含news的消费者可以收到消息（2个）
-           // rabbitTemplate.convertAndSend("ilovesshan.direct", "news", " Hello every one ~~~");
-       }
-   }
-   ```
+   ![image-20230418075300598](../../.vuepress/public/image-20230418075300598.png)
 
+3. 热点限流高级配置，可以将热点限流规则精确到参数上。
 
+   + 默认情况下，规定每秒相同参数的请求不能超过2。
+   + 但是ID是102和103的这两个请求例外，ID为102的请求每秒不允许超过4个，ID为103的请求每秒不允许超过8个。
+   + 请注意，资源参数类型只能是基本数据类型，并且要与参数例外项中的参数类型保持一致。
+   + 这种场景适合一个热点商品查询
 
-### Topic Exchange 模型
-
-1. Topic Exchange 模型其实和Direct Exchange 模型差不多，Topic Exchange就只是在Direct Exchange基础上增加了key匹配通配符。
-
-   + \* 单个字符
-   + \# 任意长度字符
-
-2. 在consumer服务中消费消息
-
-   ```java
-   @Component
-   public class SpringAmqpConsumer {   
-       @RabbitListener(bindings = @QueueBinding(
-           value = @Queue("topic.queue1"),
-           exchange = @Exchange(name = "ilovesshan.topic", type = ExchangeTypes.TOPIC),
-           // 配置 china.任意字符
-           key = {"china.#"}
-       ))
-       public void receiveTopicExchangeMessage1(String message) {
-           System.out.println("消费者1收到消息：【" + message + "】 ===> " + LocalDateTime.now());
-       }
-   
-   
-       @RabbitListener(bindings = @QueueBinding(
-           value = @Queue("topic.queue2"),
-           exchange = @Exchange(name = "ilovesshan.topic", type = ExchangeTypes.TOPIC),
-           // 配置 任意字符.news
-           key = {"#.news"}
-       ))
-       public void receiveTopicExchangeMessage2(String message) {
-           System.err.println("消费者2收到消息：【" + message + "】 ===> " + LocalDateTime.now());
-       }
-   }
-   
-   ```
+   ![image-20230418075727210](../../.vuepress/public/image-20230418075727210.png)
 
    
 
-3. 在publisher服务中发布消息
+4. 踩坑点
 
-   ```java
-   @RunWith(SpringRunner.class)
-   @SpringBootTest
-   public class SpringAmqpConsumerTest {
-       @Test
-       public void testTopicExchange() {
-           // 两个消费者都可以接收到消息
-           // rabbitTemplate.convertAndSend("ilovesshan.topic", "china.news", "学习微服务~~");
-   
-           // 消费者(key包含chins.#)可以接收到消息
-           rabbitTemplate.convertAndSend("ilovesshan.topic", "china.weather", "今天天气很OK~~");
-       }
-   }
-   
-   ```
+   + 默认情况下，热点参数限流不支持SpringMVC的资源。
 
-
-
-### MessageConveter 消息转换器 
-
-1. 之前在向队列中发送的都是简单消息（一串字符串，字符序列），那么试想一下发送一个JavaBean、Map对象或者Object可以吗？因为在实际开发中传递消息并不是一个简简单单的字符串，而是使用JavaBean或者Map数据类型的场景较多。
-
-2. 向队列中发送一个Map或者JavaBean试试。
-
-   + 发布消息
+   + 需要通过@SentinelResource("getOrderById")注解进行标识/orders/{id}对应的控制器方法。
 
      ```java
-     @Test
-     public void testObjectQueue() {
-         HashMap<Object, String> data = new HashMap<>();
-         data.put("name", "ilovesshan");
-         data.put("time", LocalDateTime.now().toString());
-         rabbitTemplate.convertAndSend("object.exchange","objectKey", data);
+     @SentinelResource("getOrderById")
+     @GetMapping("/orders/{id}")
+     public Object getOrderById(@PathVariable("id") Integer id) {
+         return orderService.selectById(id);
+     }
+     ```
+
+5. jmeter测试
+
+   ![image-20230418080053326](../../.vuepress/public/image-20230418080053326.png)
+
+
+
+
+
+## Sentinel 隔离和降级
+
+### Feign整合Sentinel 
+
+1. 虽然限流可以尽量避免因高并发而引起的服务故障，但服务还会因为其它原因而故障。而要将这些故障控制在一定范围，避免雪崩，就要靠线程隔离（舱壁模式）和熔断降级手段了。不管是线程隔离还是熔断降级，都是对客户端（调用方）的保护。
+
+2. 在客户端（orderservice）中开启feign对Sentinel的支持
+
+   ```yaml
+   spring:
+     feign:
+       sentinel:
+         enabled: true # 开启feign对Sentinel的支持
+   ```
+
+3. 在feign-api中编写失败后的降级逻辑。
+
+   + 方式一：FallBackClas，无法对远程调用的异常做处理。
+   + 方式一：FallBackFactory，可以对远程调用的异常做处理（推荐使用）。
+
+4. 通过实现FallBackFactory接口对UserClient做失败后的降级逻辑。
+
+   + 定义一个类并实现FallBackFactory接口，该类负责具体的降级逻辑。
+
+     ```java
+     @Slf4j
+     public class UserClientFallback implements FallbackFactory<UserClient> {
+         @Override
+         public UserClient create(Throwable throwable) {
+             return new UserClient() {
+                 @Override
+                 public User selectById(Long id) {
+                     // 编辑具体的降级逻辑
+                     log.error("UserClient selectById接口调用失败：" + throwable);
+                     return new User();
+                 }
+             };
+         }
+     }
+     ```
+
+   + 将该类注册成一个Bena对象
+
+     ```java
+     @Configuration
+     public class FeignConfiguration {
+     
+         @Bean
+         public UserClientFallback userClientFallback() {
+             return new UserClientFallback();
+         }
+     }
+     ```
+
+   + 在UserClient接口中使用指定调用失败后的降级逻辑业务类
+
+     ```java
+     @FeignClient(value = "userservice", fallbackFactory = UserClientFallback.class)
+     public interface UserClient {
+         @GetMapping("users/{id}")
+         User selectById(@PathVariable("id") Long id);
+     }
+     ```
+
+5. 注意，需要让Spring能够扫描到@Bean注解，从而将UserClientFallback加载到Spring容器中，两种方式
+
+   + 指定字节码（推荐）
+
+     ```java
+     @EnableFeignClients(
+         // 客户端
+         clients = {UserClient.class},
+         // 配置类
+         defaultConfiguration = {FeignConfiguration.class}
+     )
+     @SpringBootApplication
+     public class OrderServiceApplication {
+         // run...
      }
      ```
 
      
 
-   + 消费消息
+   + 指定扫描包的路径
 
      ```java
-     @RabbitListener(bindings = @QueueBinding(
-         value = @Queue("object.queue"),
-         exchange = @Exchange(value = "object.exchange", type = ExchangeTypes.DIRECT),
-         key = "objectKey"
-     ))
-     public void receiveTopicExchangeMessage1(HashMap<Object, String> message) {
-         System.out.println("消费者收到消息：【" + message + "】");
+     @EnableFeignClients(basePackages = "com.ilovesshan.feign")
+     @SpringBootApplication
+     public class OrderServiceApplication {
+         // run...
      }
      ```
 
-     ```tex
-     消费者收到消息：【{name=ilovesshan, time=2023-04-13T09:55:12.242}】
-     ```
+6. 访问相关资源，回到centinel控制台中会发现簇点链路中多可一个资源，表示feign整合sentinel已经成功了。
+
+   ![image-20230418092836468](../../.vuepress/public/image-20230418092836468.png)
+
+
+
+### Sentinel 线程隔离模式
+
+1. Sentinel 线程隔离模式也叫做舱壁模式，给一个资源分配指定的线程数，线程数耗尽之后的请求会被拒绝。
+
+2. Sentinel 舱壁模式实现又分成两种
+
+   + 基于信号量（Sentinel 默认实现方式）
+
+     ![image-20230418094437994](../../.vuepress/public/image-20230418094437994.png)
 
      
 
-   + 在RabbitMQ的控制台中可以发现，队列中的消息是一串字节，并不能直接看到我们发送的Map信息（JavaBean也一样），但是在消费者接收消息的时候可以正确获取到消息，那只能说明SpringBoot可能帮我们做了处理了。
+   + 基于线程池
 
-     ![image-20230413095613872](../../.vuepress/public/image-20230413095613872.png)
+     ![image-20230418094457888](../../.vuepress/public/image-20230418094457888.png)
 
    
 
-3. Spring的对消息对象的处理是由org.springframework.amqp.support.converter.MessageConverter来处理的。而默认实现是SimpleMessageConverter，基于JDK的ObjectOutputStream完成序列化。
+3. 基于基于信号量和线程池的优缺点
 
-4. 如果要修改只需要定义一个MessageConverter 类型的Bean即可。推荐用JSON方式序列化，步骤如下：
+   + 基于信号量
+     + 优点：对于服务资源开销较小，性能比基于线程池高，比较适用于扇出范围较大的服务。
+     + 缺点：不支持服务主动超时和异步调用。
+   + 基于线程池
+     + 优点：支持服务主动超时和异步调用，比较适用于扇出范围较小的服务。
+     + 缺点：对于服务资源开销较大（一个请求资源服务就会消耗掉一部分线程资源）。
 
-   + 在consumer和publisher中引入依赖（也可以在父工程中引入）
+4. 配置线程隔离
 
-     ```xml
-     <dependency>
-         <groupId>com.fasterxml.jackson.core</groupId>
-         <artifactId>jackson-databind</artifactId>
-     </dependency>
+   + QPS：就是每秒的请求数，在前面已经演示过了。
+   + 线程数：是该资源能使用的tomcat线程数的最大值。也就是通过限制线程数量，实现舱壁模式。
+
+   ![image-20230418095121780](../../.vuepress/public/image-20230418095121780.png)
+
+   
+
+5. 使用jmeter测试
+
+   + 瞬时发送10个请求
+
+     ![image-20230418095315062](../../.vuepress/public/image-20230418095315062.png)
+
+   + 虽然全部都请求成功了，但是仔细看有一部分请求的响应数据中User信息是null（配置的UserClientFallback降级逻辑生效了）。
+
+     ![image-20230418095950095](../../.vuepress/public/image-20230418095950095.png)
+
+     ![image-20230418100011030](../../.vuepress/public/image-20230418100011030.png)
+
+
+
+### Sentinel 熔断降级模式
+
+1. 熔断降级是解决雪崩问题的重要手段。其思路是由断路器统计服务调用的异常比例、慢请求比例，如果超出阈值则会熔断该服务。即拦截访问该服务的一切请求；而当服务恢复时，断路器会放行访问该服务的请求。
+
+   ![image-20230418103337002](../../.vuepress/public/image-20230418103337002.png)
+
+   
+
+2. 断路器熔断策略有三种
+
+   + 慢调用
+
+     + 慢调用：业务的响应时长（RT）大于指定时长的请求认定为慢调用请求。在指定时间内，如果请求数量超过设定的最小数量，慢调用比例大于设定的阈值，则触发熔断。
+
+     + 配置解读：最大响应时常为500ms，统计1s内的请求，如果请求数量超过10并且慢调比例（真实响应时常大于RT）高于0.5，则出发熔断，熔断时常为5s，等5s之后进入Half Open状态，尝试放行一次请求做测试。
+
+       ![image-20230418104040227](../../.vuepress/public/image-20230418104040227.png)
+
+     
+
+   + 异常比例
+
+     + 1s内如果请求数大于10并且异常比高于0.5（正常响应/异常响应），就触发熔断。
+
+       ![image-20230418104659314](../../.vuepress/public/image-20230418104659314.png)
+
+     
+
+   + 异常数
+
+     + 1s内如果请求数大于10并且异常个数大于5，就触发熔断。
+
+       ![image-20230418104748683](../../.vuepress/public/image-20230418104748683.png)
+
+   
+
+3. 测试断路器熔断策略 - 慢调用
+
+   + 需求：给UserClient的查询用户接口设置降级规则，慢调用的RT阈值为50ms，统计时间为1秒，最小请求数量为5，失败阈值比例为0.4，熔断时长为5。
+
+     ![image-20230418105723634](../../.vuepress/public/image-20230418105723634.png)
+
+     
+
+   + 为了能实现慢调用的效果，这里对业务代码进行修改（注意修改的是userservice服务中的方法）。
+
+     ```java
+     @GetMapping("/users/{id}")
+     public Object getUserById(@PathVariable("id") Integer id) throws InterruptedException {
+         if (id == 1) {
+             // 模拟响应慢
+             Thread.sleep(60);
+         }
+         return userService.selectById(id);
+     }
+     ```
+
+   + l浏览器测
+
+     + 狂刷http://localhost:10010/orders/101接口，保证一秒发送4次以上。
+
+     + 请求http://localhost:10010/orders/102接口，会发现User信息为空了。
+
+     + 等熔断时常过后，再次请求信息返回正常。
+
+       
+
+4. 测试断路器熔断策略 -异常比例和异常数量
+
+   + 先修改业务代码
+
+     ```java
+     @GetMapping("/users/{id}")
+     public Object getUserById(@PathVariable("id") Integer id) throws InterruptedException {
+         if (id == 1) {
+             Thread.sleep(50);
+         } else if (id == 2) {
+             throw new RuntimeException("测试熔断， 这是自定义异常信息...");
+         }
+         return userService.selectById(id);
+     }
+     ```
+
+   + 配置器熔断策略
+
+     + 异常比例
+
+       ![image-20230418111857678](../../.vuepress/public/image-20230418111857678.png)
+
+       
+
+     + 异常数
+
+       ![image-20230418112307206](../../.vuepress/public/image-20230418112307206.png)
+
+   
+
+
+
+## Sentinel 授权规则
+
+1. 授权规则可以对调用方的来源做控制，有白名单和黑名单两种方式。
+
+   + 白名单：来源（origin）在白名单内的调用者允许访问。
+
+   + 黑名单：来源（origin）在黑名单内的调用者不允许访问。
+
+   + 例如我们只允许通过网关来访问orderservice服务，那么流控应用就填写网关名称。
+
+     ![image-20230418142857935](../../.vuepress/public/image-20230418142857935.png)
+
+     ![image-20230418140850749](../../.vuepress/public/image-20230418140850749.png)
+
+2. Sentinel 是通过RequestOriginParser这个接口来获取请求来源的，比如：我们尝试从请求头中获取名为origin的请求头，作为origin的值（parseOrigin方法的返回值就是请求来源的名称）。
+
+   ```java
+   public interface RequestOriginParser {
+       String parseOrigin(HttpServletRequest var1);
+   }
+   ```
+
+   ```java
+   @Component
+   public class SentinelConfiguration implements RequestOriginParser {
+       @Override
+       public String parseOrigin(HttpServletRequest httpServletRequest) {
+           String origin = httpServletRequest.getHeader("origin");
+           if (!StringUtils.hasText(origin)) {
+               return  "blank";
+           }
+           return origin;
+       }
+   }
+   ```
+
+3. 在网关中，添加统一的请求头就ok了，可以使用default-filter配置。
+
+   ```yaml
+   spring:
+     cloud:
+       gateway:
+         default-filters:
+           - AddRequestHeader=origin, gateway
+   ```
+
+4. 修改完orderservice和gateway服务之后，记得要重启。 
+
+5. 在sentinel中填写授权规则
+
+   ![image-20230418144335875](../../.vuepress/public/image-20230418144335875.png)
+
+6. 在浏览器测试访问
+
+   + 通过网关访问可以正常响应结果。http://localhost:10010/orders/102
+
+     
+
+   + 通过非网关访问则被拦截了。http://localhost:8081/orders/102
+
+     ```
+     Blocked by Sentinel (flow limiting)
+     ```
+
+
+
+## Sentinel 自定义异常
+
+1. 默认情况下出现限流、降级、授权拦截时都会抛出异常到调用方，如果要自定义异常返回结果时就需要实现BlockExceptionHandler接口。
+
+   ```java
+   public interface BlockExceptionHandler {
+       void handle(HttpServletRequest var1, HttpServletResponse var2, BlockException var3) throws Exception;
+   }
+   ```
+
+2. BlockException下的子类对应场景，我们可以根据类型判断具体的业务场景从而响应不同的信息给调用方。
+
+   + FlowException：限流异常
+   + SystemBlockException：系统规则异常
+   + AuthorityException：授权规则异常
+   + DegradeException：降级异常
+   + ParamsFlowException：热点参数异常
+
+   ![image-20230418145550909](../../.vuepress/public/image-20230418145550909.png)
+
+   
+
+3. 自定义一个类实现BlockExceptionHandler接口，实现自定义异常处理。
+
+   ```java
+   @Component
+   @Slf4j
+   public class SentinelExceptionHandler implements BlockExceptionHandler {
+       @Override
+       public void handle(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, BlockException e) throws Exception {
+           HashMap<String, Object> responseData = new HashMap<>();
+   
+           String exceptionReason = "系统其他异常";
+           if (e instanceof ParamFlowException) {
+               // 热点参数限流异常
+               exceptionReason = "热点参数异常";
+               log.error("系统参数异常");
+   
+           } else if (e instanceof FlowException) {
+               // 限流异常
+               exceptionReason = "限流异常";
+               log.error("限流异常");
+   
+           } else if (e instanceof DegradeException) {
+               // 降级异常
+               exceptionReason = "降级异常";
+               log.error("降级异常");
+   
+           } else if (e instanceof AuthorityException) {
+               // 授权异常
+               exceptionReason = "授权异常";
+               log.error("授权异常");
+   
+           } else if (e instanceof SystemBlockException) {
+               // 系统规则异常
+               exceptionReason = "系统规则异常";
+               log.error("系统规则异常");
+   
+           } else {
+               // 其他异常
+               log.error("系统其他异常");
+           }
+           responseData.put("code", 500);
+           responseData.put("message", exceptionReason);
+   
+           httpServletResponse.setContentType("application/json;charset=utf-8");
+           httpServletResponse.getWriter().write(JSON.toJSONString(responseData));
+       }
+   }
+   ```
+
+4. 可以在sentinel控制台中配置流控、熔断、热点、授权等规则来测试自定义异常。
+
+
+
+## 分布式事务
+
+### 事务ACID原则
+
+1. 原子性（Atomicity）：原子性是指事务是一个不可分割的工作单位，事务中的操作要么都发生，要么都不发生。
+2. 一致性（Consistency）：事务前后数据的完整性必须保持一致。
+3. 持久性（Isolation）：事务的隔离性是多个用户并发访问数据库时，数据库为每一个用户开启的事务，不能被其他事务的操作数据所干扰，多个并发事务之间要相互隔离。
+4. 一致性（Durability）：持久性是指一个事务一旦被提交，它对数据库中数据的改变就是永久性的，接下来即使数据库发生故障也不应该对其有任何影响。
+
+### 分布式服务案例
+
+1. 微服务下单业务，在下单时会调用订单服务，创建订单并写入数据库，然后会调用账户服务和库存服务。
+
+   + 账户服务负责扣减余额。
+   + 库存服务负责扣减库存。
+
+   ![image-20230419081318992](../../.vuepress/public/image-20230419081318992.png)
+
+   
+
+2. 数据库设计（每个微服务模块应该对应一个数据库，这里为了方便就使用一个数据库）。
+
+   + account_tbl 账户表
+   + order_tbl 订单表
+   + storage_tbl 库存表
+
+   ```sql
+   
+   SET NAMES utf8mb4;
+   SET FOREIGN_KEY_CHECKS = 0;
+   
+   -- ----------------------------
+   -- Table structure for account_tbl
+   -- ----------------------------
+   DROP TABLE IF EXISTS `account_tbl`;
+   CREATE TABLE `account_tbl`  (
+       `id` int(11) NOT NULL AUTO_INCREMENT,
+       `user_id` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `money` int(11) UNSIGNED NULL DEFAULT 0,
+       PRIMARY KEY (`id`) USING BTREE
+   ) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = COMPACT;
+   
+   -- ----------------------------
+   -- Records of account_tbl
+   -- ----------------------------
+   INSERT INTO `account_tbl` VALUES (1, 'user202103032042012', 1000);
+   
+   -- ----------------------------
+   -- Table structure for order_tbl
+   -- ----------------------------
+   DROP TABLE IF EXISTS `order_tbl`;
+   CREATE TABLE `order_tbl`  (
+       `id` int(11) NOT NULL AUTO_INCREMENT,
+       `user_id` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `commodity_code` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `count` int(11) NULL DEFAULT 0,
+       `money` int(11) NULL DEFAULT 0,
+       PRIMARY KEY (`id`) USING BTREE
+   ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = COMPACT;
+   
+   -- ----------------------------
+   -- Records of order_tbl
+   -- ----------------------------
+   
+   -- ----------------------------
+   -- Table structure for storage_tbl
+   -- ----------------------------
+   DROP TABLE IF EXISTS `storage_tbl`;
+   CREATE TABLE `storage_tbl`  (
+       `id` int(11) NOT NULL AUTO_INCREMENT,
+       `commodity_code` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `count` int(11) UNSIGNED NULL DEFAULT 0,
+       PRIMARY KEY (`id`) USING BTREE,
+       UNIQUE INDEX `commodity_code`(`commodity_code`) USING BTREE
+   ) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = COMPACT;
+   
+   -- ----------------------------
+   -- Records of storage_tbl
+   -- ----------------------------
+   INSERT INTO `storage_tbl` VALUES (1, '100202003032041', 10);
+   
+   SET FOREIGN_KEY_CHECKS = 1;
+   ```
+
+   
+
+3. 代码设计
+
+   ```
+   -- seate-demo
+       -- account-service（8084） 账户服务
+       -- order-service（8085） 订单服务
+       -- storage-service（8086） 库存服务
+   ```
+
+4. postman 访问接口
+
+   + 正常响应
+
+     ```
+     http://localhost:8085/order?userId=user202103032042012&commodityCode=100202003032041&count=2&money=200
      ```
 
      
 
-   + 在consumer和publisher中定义
+   + 将count改成10，会抛出异常（会发现订单已经创建成功、余额也扣减成功，但是库存扣减失败）。
 
-     ```java
-     @Bean
-     public MessageConverter jsonMessageConverter(){
-         return new Jackson2JsonMessageConverter(); 
-     }
+     ```
+     http://localhost:8085/order?userId=user202103032042012&commodityCode=100202003032041&count=10&money=200
      ```
 
-   + 现在就可以清晰看到数据信息了
+   
 
-     ![image-20230413101246065](../../.vuepress/public/image-20230413101246065.png)
+### 分布式事务概念
+
+1. 在分布式系统下，一个业务跨越多个服务和数据源，每个服务都是一个分支事务。要保证每一个分支事务的最终状态一致，这就是分布式事务。
+
+
+
+### CAP定理
+
+1. 分布式系统有三个指标，分别是：一致性（Consistency）、可用性（Availability）、分区容错（Partition tolerance）。
+
+2. 一致性（Consistency）：用户访问分布式系统中的任意一个节点，得到的数据必须一致。
+
+3. 可用性（Availability）：用户访问集群中任意一个健康节点都必须得到响应，而不是超时或者拒绝。
+
+4. 分区容错（Partition tolerance）
+
+   + 分区：因为网络故障或者其他原因导致分布式系统中的部分节点与其他节点失去连接、从而形成新的分区。
+   + 容错：在集群系统中出现分区情况时，整个系统也要对外持续提供服务。
+
+5. 总结：
+
+   + 在分布式系统中、各个服务间通过网络连接就会出现分区情况（P）。
+   + 一旦出现分区情况，那么一致性（C）和可用性（A）就不能同时满足，要么取CP放弃A，要么取AP放弃C，鉴于这种情况那么BASE理论可以来解决。
+
+6. 思考：elasticsearch集群是CP还是AP？
+
+   + ES集群出现分区时，故障节点会被剔除集群，数据分片会重新分配到其它节点，保证数据一致。因此是低可用性，高一致性，属于CP
+
+   
+
+### BASE理论
+
+1. BASE理论是对CAP的一种解决思路，包含三个思想
+
+   + Basically Available （基本可用）：分布式系统在出现故障时，允许损失部分可用性，即保证核心可用。
+   + Soft State（软状态）：在一定时间内，允许出现中间状态，比如临时的不一致状态。
+   + Eventually Consistent（最终一致性）：虽然无法保证强一致性，但是在软状态结束后，最终达到数据一致。
+
+2. 而分布式事务最大的问题是各个子事务的一致性问题，因此可以借鉴CAP定理和BASE理论：
+
+   + AP模式：各子事务分别执行和提交，允许出现结果不一致，然后采用弥补措施恢复数据即可，实现最终一致。
+   + CP模式：各个子事务执行后互相等待，同时提交，同时回滚，达成强一致。但事务等待过程中，处于弱可用状态。
+
+3. 解决分布式事务就必须要让各个分支事务能够感应到彼此事务状态，才能够保证各个分支事务的一致性。因此需要一个事务协调者来协调每一个事务的参与者（子系统事务）。
+
+   + 这里的子系统事务，称为分支事务；有关联的各个分支事务在一起称为全局事务。
+
+   ![image-20230419091647556](../../.vuepress/public/image-20230419091647556.png)
+
+
+
+## Seata 
+
+### Seata简介
+
+1. Seata 官网地址：https://seata.io/zh-cn/docs/overview/what-is-seata.html
+2. Seata 是一款开源的分布式事务解决方案，致力于提供高性能和简单易用的分布式事务服务。Seata 将为用户提供了 AT、TCC、SAGA 和 XA 事务模式，为用户打造一站式的分布式解决方案。
+
+### Seata 架构
+
+1. Seata 架构中有三个非常重要的角色
+
+   + TC (Transaction Coordinator) - 事务协调者：维护全局和分支事务的状态，协调全局事务提交或回滚。
+   + TM (Transaction Manager) - 事务管理器：定义全局事务的范围、开始全局事务、提交或回滚全局事务。
+   + RM (Resource Manager) - 资源管理器：管理分支事务处理的资源，与TC交谈以注册分支事务和报告分支事务的状态，并驱动分支事务提交或回滚。
+
+   ![image-20230419092551875](../../.vuepress/public/image-20230419092551875.png)
+
+   
+
+2. Seata提供了四种分布式事务解决方案
+
+   + XA模式：强一致性分阶段事务模式，牺牲了一定的可用性，无业务侵入。
+   + TCC模式：最终一致的分阶段事务模式，有业务侵入。
+   + AT模式：最终一致的分阶段事务模式，无业务侵入，也是Seata的默认模式。
+   + SAGA模式：长事务模式，有业务侵入。
+
+### 部署TC服务
+
+1. 下载并解压seata-server包，下载地址：http://seata.io/zh-cn/blog/download.html。
+
+2. 修改conf目录下的registry.conf文件。
+
+   ```properties
+   registry {
+     # tc服务的注册中心类，这里选择nacos，也可以是eureka、zookeeper等
+     # file 、nacos 、eureka、redis、zk、consul、etcd3、sofa
+     type = "nacos"
+   
+     nacos {
+       application = "seata-tc-server"
+       serverAddr = "127.0.0.1:8848"
+       group = "DEFAULT_GROUP"
+       namespace = ""
+       cluster = "HZ"
+       username = "nacos"
+       password = "nacos"
+     }
+   }
+   
+   config {
+     # 读取tc服务端的配置文件的方式，这里是从nacos配置中心读取，这样如果tc是集群，可以共享配置
+     # file、nacos 、apollo、zk、consul、etcd3
+     type = "nacos"
+   
+     nacos {
+       serverAddr = "127.0.0.1:8848"
+       namespace = ""
+       group = "SEATA_GROUP"
+       username = "nacos"
+       password = "nacos"
+       dataId = "seataServer.properties"
+     }
+   }
+   ```
+
+   
+
+3. 在nacos添加配置
+
+   + 特别注意，为了让tc服务的集群可以共享配置，我们选择了nacos作为统一配置中心。因此服务端配置文件seataServer.properties文件需要在nacos中配好。
+
+     ```properties
+     # 数据存储方式，db代表数据库
+     store.mode=db
+     store.db.datasource=druid
+     store.db.dbType=mysql
+     store.db.driverClassName=com.mysql.cj.jdbc.Driver
+     store.db.url=jdbc:mysql://127.0.0.1:3306/seata?useUnicode=true&rewriteBatchedStatements=true
+     store.db.user=root
+     store.db.password=123456
+     store.db.minConn=5
+     store.db.maxConn=30
+     store.db.globalTable=global_table
+     store.db.branchTable=branch_table
+     store.db.queryLimit=100
+     store.db.lockTable=lock_table
+     store.db.maxWait=5000
+     # 事务、日志等配置
+     server.recovery.committingRetryPeriod=1000
+     server.recovery.asynCommittingRetryPeriod=1000
+     server.recovery.rollbackingRetryPeriod=1000
+     server.recovery.timeoutRetryPeriod=1000
+     server.maxCommitRetryTimeout=-1
+     server.maxRollbackRetryTimeout=-1
+     server.rollbackRetryTimeoutUnlockEnable=false
+     server.undo.logSaveDays=7
+     server.undo.logDeletePeriod=86400000
+     
+     # 客户端与服务端传输方式
+     transport.serialization=seata
+     transport.compressor=none
+     # 关闭metrics功能，提高性能
+     metrics.enabled=false
+     metrics.registryType=compact
+     metrics.exporterList=prometheus
+     metrics.exporterPrometheusPort=9898
+     ```
+
+4. 创建数据库表
+
+   + tc服务在管理分布式事务时，需要记录事务相关数据到数据库中，你需要提前创建好这些表。
+
+   + 新建一个名为seata的数据库，再运行以下SQL脚本（这些表主要记录全局事务和分支事务的一些信息）。
+
+     ```sql
+     
+     SET NAMES utf8mb4;
+     SET FOREIGN_KEY_CHECKS = 0;
+     
+     -- ----------------------------
+     -- 分支事务表
+     -- ----------------------------
+     DROP TABLE IF EXISTS `branch_table`;
+     CREATE TABLE `branch_table`  (
+       `branch_id` bigint(20) NOT NULL,
+       `xid` varchar(128) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+       `transaction_id` bigint(20) NULL DEFAULT NULL,
+       `resource_group_id` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `resource_id` varchar(256) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `branch_type` varchar(8) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `status` tinyint(4) NULL DEFAULT NULL,
+       `client_id` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `application_data` varchar(2000) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `gmt_create` datetime(6) NULL DEFAULT NULL,
+       `gmt_modified` datetime(6) NULL DEFAULT NULL,
+       PRIMARY KEY (`branch_id`) USING BTREE,
+       INDEX `idx_xid`(`xid`) USING BTREE
+     ) ENGINE = InnoDB CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Compact;
+     
+     -- ----------------------------
+     -- 全局事务表
+     -- ----------------------------
+     DROP TABLE IF EXISTS `global_table`;
+     CREATE TABLE `global_table`  (
+       `xid` varchar(128) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+       `transaction_id` bigint(20) NULL DEFAULT NULL,
+       `status` tinyint(4) NOT NULL,
+       `application_id` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `transaction_service_group` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `transaction_name` varchar(128) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `timeout` int(11) NULL DEFAULT NULL,
+       `begin_time` bigint(20) NULL DEFAULT NULL,
+       `application_data` varchar(2000) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+       `gmt_create` datetime NULL DEFAULT NULL,
+       `gmt_modified` datetime NULL DEFAULT NULL,
+       PRIMARY KEY (`xid`) USING BTREE,
+       INDEX `idx_gmt_modified_status`(`gmt_modified`, `status`) USING BTREE,
+       INDEX `idx_transaction_id`(`transaction_id`) USING BTREE
+     ) ENGINE = InnoDB CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Compact;
+     
+     SET FOREIGN_KEY_CHECKS = 1;
+     ```
+
+     
+
+5. 启动TC服务
+
+   + 进入bin目录，运行其中的seata-server.bat即可，启动成功后，seata-server应该已经注册到nacos注册中心了。
+
+   + 打开nacos（http://192.168.43.174:8848/nacos/index.html），查看服务列表发现有seata-tc-server就表示成功了。
+
+     ![image-20230419094407261](../../.vuepress/public/image-20230419094407261.png)
+
+
+
+### 微服务集成Seata
+
+1. 引入seata依赖（每一个微服务模块都引入）
+
+   ```xml
+   <dependency>
+       <groupId>com.alibaba.cloud</groupId>
+       <artifactId>spring-cloud-starter-alibaba-seata</artifactId>
+       <exclusions>
+           <!--版本较低，1.3.0，因此排除-->
+           <exclusion>
+               <artifactId>seata-spring-boot-starter</artifactId>
+               <groupId>io.seata</groupId>
+           </exclusion>
+       </exclusions>
+   </dependency>
+   <!--seata starter 采用1.4.2版本-->
+   <dependency>
+       <groupId>io.seata</groupId>
+       <artifactId>seata-spring-boot-starter</artifactId>
+       <version>${seata.version}</version>
+   </dependency>
+   ```
+
+   
+
+2. 添加seata配置（每一个微服务模块都配置）
+
+   ```yaml
+   seata:
+     registry:  # TC服务注册中心的配置，微服务根据这些信息去注册中心获取tc服务地址
+       type: nacos
+       nacos:
+         namespace: ""
+         server-addr: 127.0.0.1:8848
+         group: DEFAULT_GROUP
+         application: seata-tc-server # tc服务在nacos中的服务名称
+         cluster: HZ
+     tx-service-group: hz-group # 事务组，根据这个获取tc服务的cluster名
+     service:
+       vgroup-mapping: # 事务组与TC服务cluster的映射关系
+         hz-group: HZ
+   ```
+
+   
+
+3. 重新启动微服务模块，再观察Seata控制台日志信息，从日志信息中可以发现新的RM已经成功注册进来了。
+
+   ![image-20230419100206207](../../.vuepress/public/image-20230419100206207.png)
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2484,4 +2961,5 @@ Spring Cloud
    | spring-cloud-starter-openfeign               | 2.2.7.RELEASE |
    | feign-httpclient                             | 10.10.1       |
    | spring-cloud-starter-gateway                 | 2.2.7.RELEASE |
+   | spring-cloud-starter-alibaba-sentinel        | 2.2.7.RELEASE |
 

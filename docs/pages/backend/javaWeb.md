@@ -3289,12 +3289,78 @@
 
 1. jar包下载
 
-   + Tomcat10.x +
-     + [jakarta.servlet.jsp.jstl-2.0.0](https://repo1.maven.org/maven2/org/glassfish/web/jakarta.servlet.jsp.jstl/2.0.0/)
-     + [jakarta.servlet.jsp.jstl-api-2.0.0](https://repo1.maven.org/maven2/jakarta/servlet/jsp/jstl/jakarta.servlet.jsp.jstl-api/2.0.0/)
-   + Tomcat10.x -
-     + [javax.servlet.jsp.jstl-1.2.1](https://repo1.maven.org/maven2/javax/servlet/jsp/jstl/javax.servlet.jsp.jstl-api/1.2.1/)
-     + [taglibs-standard-1.2.5](https://repo1.maven.org/maven2/org/apache/taglibs/taglibs-standard/1.2.5/)
+   + Tomcat10.x
+     + [jakarta.servlet.jsp.jstl-3.0.0](https://mvnrepository.com/artifact/jakarta.servlet.jsp.jstl/jakarta.servlet.jsp.jstl-api/3.0.0)
+     
+     + [jakarta.servlet.jsp.jstl-api-2.0.0](https://mvnrepository.com/artifact/jakarta.servlet.jsp.jstl/jakarta.servlet.jsp.jstl-api/3.0.0)
+     
+       ```xml
+       <!-- https://mvnrepository.com/artifact/jakarta.servlet.jsp.jstl/jakarta.servlet.jsp.jstl-api -->
+       <dependency>
+           <groupId>jakarta.servlet.jsp.jstl</groupId>
+           <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+           <version>3.0.0</version>
+       </dependency>
+       
+       <!-- https://mvnrepository.com/artifact/jakarta.servlet.jsp.jstl/jakarta.servlet.jsp.jstl-api -->
+       <dependency>
+           <groupId>jakarta.servlet.jsp.jstl</groupId>
+           <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+           <version>3.0.0</version>
+       </dependency>
+       ```
+     
+       
+     
+   + Tomcat9.x
+
+     + [taglibs-standard-impl-1.2.5](https://mvnrepository.com/artifact/org.apache.taglibs/taglibs-standard-impl/1.2.5)
+
+     + [taglibs-standard-spec-1.2.5](https://mvnrepository.com/artifact/org.apache.taglibs/taglibs-standard-spec/1.2.5)
+
+       ```xml
+       <!-- https://mvnrepository.com/artifact/org.apache.taglibs/taglibs-standard-impl -->
+       <dependency>
+           <groupId>org.apache.taglibs</groupId>
+           <artifactId>taglibs-standard-impl</artifactId>
+           <version>1.2.5</version>
+           <scope>runtime</scope>
+       </dependency>
+       
+       <!-- https://mvnrepository.com/artifact/org.apache.taglibs/taglibs-standard-spec -->
+       <dependency>
+           <groupId>org.apache.taglibs</groupId>
+           <artifactId>taglibs-standard-spec</artifactId>
+           <version>1.2.5</version>
+       </dependency>
+       
+       ```
+
+       
+
+   + Tomcat8.x 
+     
+     + [javax.el-api-3.0.0](https://mvnrepository.com/artifact/javax.el/javax.el-api/3.0.0)
+     
+     + [jstl-1.2](https://mvnrepository.com/artifact/javax.servlet/jstl/1.2)
+     
+       ```xml
+       <!-- https://mvnrepository.com/artifact/javax.el/javax.el-api -->
+       <dependency>
+           <groupId>javax.el</groupId>
+           <artifactId>javax.el-api</artifactId>
+           <version>3.0.0</version>
+       </dependency>
+       
+       <!-- https://mvnrepository.com/artifact/javax.servlet/jstl -->
+       <dependency>
+           <groupId>javax.servlet</groupId>
+           <artifactId>jstl</artifactId>
+           <version>1.2</version>
+       </dependency>
+       ```
+     
+       
 
 2. 在WEB-INF文件夹下新建 lib，将jar包复制到lib目录下，然后选中jar包执行 Add as Libary...操作就ok了
 
