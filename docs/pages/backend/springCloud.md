@@ -1,4 +1,4 @@
-# Spring Cloud
+Spring Cloud
 
 ## 微服务导学
 
@@ -49,7 +49,7 @@
    + 面向服务：微服务对外暴露业务接口，方便各模块之间数据通信。
    + 独立自治：团队对立、技术独立、数据独立、部署独立。
    + 隔离性：服务调用做好隔离、容错、降级避免出现级联问题。
-2. 微服务是一种良好的分布四架构方案
+2. 微服务是一种良好的分布式架构方案
    + 优点：拆分力度更小、服务更独立、耦合度更低。
    + 缺点：架构非常复杂、监控、部署难度提高。
 
@@ -67,7 +67,7 @@
 
    + 统一配置管理
 
-     + SpringCloudCoofig、Nacos
+     + SpringCloudConfig、Nacos
 
    + 服务远程调用
 
@@ -75,7 +75,7 @@
 
    + 统一网关路由
 
-     + SpringCloudGetWay、Zuul
+     + SpringCloudGateway、Zuul
 
    + 服务链路监控
 
@@ -83,15 +83,15 @@
 
    + 流控、降级、保护
 
-     + Hystix、Sentinel
+     + Hystrix、Sentinel
 
        
 
-3. Spring Cloud和springcloud版本查询地址： https://start.spring.io/actuator/info 
+3. Spring Cloud和Spring Boot版本查询地址： https://start.spring.io/actuator/info 
 
-4. Spring Cloud和springcloud版本关系对照表
+4. Spring Cloud和Spring Boot版本关系对照表
 
-   | Release Train                                                | Release Train                         |
+   | SpringCloud                                                  | SpringBoot                            |
    | ------------------------------------------------------------ | ------------------------------------- |
    | [2022.0.x](https://github.com/spring-cloud/spring-cloud-release/wiki/Spring-Cloud-2022.0-Release-Notes) aka Kilburn | 3.0.x                                 |
    | [2021.0.x](https://github.com/spring-cloud/spring-cloud-release/wiki/Spring-Cloud-2021.0-Release-Notes) aka Jubilee | 2.6.x, 2.7.x (Starting with 2021.0.3) |
@@ -106,24 +106,25 @@
 
 ### 微服务拆分案例
 
-1. 将项目拆分成两个模块，分别是user-server（用户模块）和order-service（订单模块），springcloud01作为user-server和order-server的父模块，user-server和order-server都是springcloud项目（需要手动写一下启动口类和相关配置文件application.yml，因为这是创建的Maven工程而不是通过spring initializr创建的工程），我们需要在springcloud01的pom文件中引入公共依赖，再在user-server和order-server子工程中引入所需要的依赖。
+1. 将项目拆分成两个模块，分别是user-server（用户模块）和order-service（订单模块），springcloud01作为user-server和order-server的父模块，user-server和order-server都是springboot项目（需要手动补充启动类和相关配置文件application.yml，因为这是创建的Maven工程而不是通过spring initializr创建的工程），我们需要在springcloud01的pom文件中引入公共依赖，再在user-server和order-server子工程中引入所需要的依赖。
 
    ```xml
    <!-- 将当前项目声明为 springcloud 项目 -->
    <parent>
-       <artifactId>spring-boot-starter-parent</artifactId>
        <groupId>org.springframework.boot</groupId>
-       <version>2.5.0</version>
+       <artifactId>spring-boot-starter-parent</artifactId>
+       <version>2.3.9.RELEASE</version>
+       <relativePath/>
    </parent>
    
    <!-- 定义依赖版本 -->
    <properties>
-       <maven.compiler.source>17</maven.compiler.source>
-       <maven.compiler.target>17</maven.compiler.target>
-       <spring-boot-starter-web.version>3.0.5</spring-boot-starter-web.version>
+       <maven.compiler.source>8</maven.compiler.source>
+       <maven.compiler.target>8</maven.compiler.target>
+       <spring-boot-starter-web.version>2.3.4.RELEASE</spring-boot-starter-web.version>
        <mysql-connector-j.version>8.0.32</mysql-connector-j.version>
        <mybatis-spring-boot-starter.version>2.2.2</mybatis-spring-boot-starter.version>
-       <spring-cloud-dependencies.version>2021.0.1</spring-cloud-dependencies.version>
+       <spring-cloud-dependencies.version>Hoxton.SR10</spring-cloud-dependencies.version>
        <lombok.version>1.18.26</lombok.version>
    </properties>
    
@@ -166,7 +167,7 @@
 
    
 
-2. user-server使用 springcloud-user数据库，order-service使用 springcloud-order数据库，再分别提供一个根据ID查询信息的接口。省略了实体类、service层和mapper层代码...（和平时使用springcloud框架开发一样搞就行了）。
+2. user-server使用 springcloud-user数据库，order-service使用 springcloud-order数据库，再分别提供一个根据ID查询信息的接口。省略了实体类、service层和mapper层代码...（和平时使用springboot框架开发一样搞就行了）。
 
    + springcloud-user
 
@@ -262,9 +263,9 @@
 
 ### 服务间接口调用
 
-1. 现在有一个新需要，访问订单信息的时候，我需要拿到用户信息！
+1. 现在有一个新需求，访问订单信息的时候，需要拿到用户信息！
 
-   + 在单体架构中，我们搞一个UserService调一下业务方法就ok了，但是现在不是单体架构是基于微服务架构，用户模块和订单模块已经分开了，部署在两个不同的服务器，你要是现在还在想UserService那就没搞头了！！
+   + 在单体架构中，我们搞一个UserService调一下业务方法就ok了，但是现在不是单体架构是基于微服务架构，用户模块和订单模块已经分开了，部署在两个不同的服务器。
    + order-server模块怎么样才能访问到user-server模块的数据呢？
      + 浏览器可以发送HTTP请求去获取user-server中的数据，user-server到时候会响应一串json字符串回来。
      + 那么在order-server模块中不一样也可以发送HTTP请求嘛，我在OrdeService中请求user-serve模块中的接口，user-server到时候再给我响应一串json，我都能拿到数据了，我自己再处理一下不就ok了？
@@ -588,7 +589,7 @@
 1. Nacos官网地址：https://nacos.io/zh-cn/docs/v2/what-is-nacos.html
 2. Nacos官网Github地址：https://github.com/alibaba/nacos
 3. 什么是Nacos
-   + Nacos /nɑ:kəʊs/ 是 Dynamic Naming and Configuration Service的首字母简称，一个更易于构建云原生应用的动态服务发现、配置管理和服务管理平台。
+   + Nacos /nɑ:kəʊs/ 是 Dynamic Naming And Configuration Service的首字母简称，一个更易于构建云原生应用的动态服务发现、配置管理和服务管理平台。
    + Nacos 致力于帮助您发现、配置和管理微服务。Nacos 提供了一组简单易用的特性集，帮助您快速实现动态服务发现、服务配置、服务元数据及流量管理。
    + Nacos 帮助您更敏捷和容易地构建、交付和管理微服务平台。 Nacos 是构建以“服务”为中心的现代应用架构 (例如微服务范式、云原生范式) 的服务基础设施。
 4. Nacos 的关键特性
@@ -700,7 +701,7 @@
 
 3. 配置服务集群属性
 
-   + 简单理解就是，将user-service实例1部署到哪一个集群，将user-service实例2部署到哪一个集群，以此类推，默认情况下可以在Nacos中发现集群叫做：DEFAULT
+   + 简单理解就是，将user-service实例1部署到哪一个集群，将user-service实例2部署到哪一个集群，以此类推。在Nacos中默认集群名称叫做DEFAULT。
 
      ![image-20230409201211616](../../.vuepress/public/image-20230409201211616.png)
 
@@ -827,7 +828,7 @@
 
 ### Nacos 统一配置管理
 
-1. 微服务中每个服务都会与自己对应的配置文件，一般情况下我们修改了配置文件就需要重启服务器，每次都重启服务器那肯定是不可取的，有什么办法来解决这个痛点？
+1. 微服务中每个服务都会有自己对应的配置文件，一般情况下我们修改了配置文件就需要重启服务器，每次都重启服务器那肯定是不可取的，有什么办法来解决这个痛点？
 
    + 我们可以将多个服务上线后可能会变更的配置信息交给Nacos来管理，将一些不变的配置到各自服务的配置文件即可，是的你没听错，Nacos不仅能做服务注册还能做配置管理。
 
@@ -1057,12 +1058,12 @@
 
 1. 相同点
 
-   + 都支持服务注册和服务拉去。
+   + 都支持服务注册和服务拉取。
    + 都支持服务提供者的心跳机制做健康检测。
 2. 不同点
 
    + Nacos支持服务端主动检测服务提供者状态，临时实例采用心跳模式，非临时实例采用主动检测模式，临时实例心跳不正常会被剔除，非临时实例不会。
-   + Nacos支持服务列表变更的消息推送模式，让服务消费者中的服务列表更新更及时。
+   + Nacos支持服务列表变更的消息推送模式，让服务消费者中的服务列表更新更及时。Eureka采用轮询模式，既然是轮询在时间差的范围中就可能会导致服务列表不一致情况。
    + Nacos集群默认采用AP方式，当集群中存在非临时实例时，采用CP模式；Eureka采用AP方式
 
 
@@ -1481,7 +1482,7 @@
    + 例如Path=/user/**是按照路径匹配
    + 这个规则是由org.springframework.cloud.gateway.handler.predicate.PathRoutePredicateFactory类来处理的。
 
-2. 像这样的断言工厂在SpringCloudGateway还有十几个，可以参考sprincloud文档地址：https://docs.spring.io/spring-cloud-gateway/docs/4.0.4/reference/html/#gateway-request-predicates-factories
+2. 像这样的断言工厂在SpringCloudGateway还有十几个，可以参考[sprincloud文档](https://docs.spring.io/spring-cloud-gateway/docs/4.0.4/reference/html/#gateway-request-predicates-factories):https://docs.spring.io/spring-cloud-gateway/docs/4.0.4/reference/html/#gateway-request-predicates-factories
 
    | **名称**   | **说明**                       | **示例**                                                     |
    | ---------- | ------------------------------ | ------------------------------------------------------------ |
@@ -1501,7 +1502,7 @@
 
 ### Gateway 过滤器工厂
 
-1. springCloud中提供了30多种过滤器工厂，参考文档：https://docs.spring.io/spring-cloud-gateway/docs/4.0.4/reference/html/#gatewayfilter-factories。
+1. springCloud中提供了30多种过滤器工厂，[参考文档](https://docs.spring.io/spring-cloud-gateway/docs/4.0.4/reference/html/#gatewayfilter-factories)：https://docs.spring.io/spring-cloud-gateway/docs/4.0.4/reference/html/#gatewayfilter-factories。
 
 2. 配置过滤器工厂
 
@@ -2709,7 +2710,7 @@
    + TM (Transaction Manager) - 事务管理器：定义全局事务的范围、开始全局事务、提交或回滚全局事务。
    + RM (Resource Manager) - 资源管理器：管理分支事务处理的资源，与TC交谈以注册分支事务和报告分支事务的状态，并驱动分支事务提交或回滚。
 
-   ![image-20230419092551875](../../.vuepress/public/image-20230419092551875.png)
+   ![image-20230419161652437](../../.vuepress/public/image-20230419161652437.png)
 
    
 
@@ -2923,9 +2924,332 @@
 
 
 
+## Seata  XA事务模式
+
+### XA规范介绍
+
+1. XA 规范 是 X/Open 组织定义的分布式事务处理（DTP，Distributed Transaction Processing）标准，XA 规范 描述了全局的TM与局部的RM之间的接口，几乎所有主流的数据库都对 XA 规范 提供了支持。
+
+   ![image-20230419162932567](../../.vuepress/public/image-20230419162932567.png)
+
+### Seata的XA模式理解
+
+1. XA模式第一阶段
+
+   + TM开启全局事务
+   + TM调用分支事务
+   + 注册分支事务到TC
+   + 执行业务SQL（不提交）
+   + 向TC报告事务状态
+
+2. 第二阶段
+
+   + TM告知TC提交/回滚事务（代码执行完成）
+   + TC对分支事务状态进行检查
+     + 如果各个分支事务状态都保持一致，TC通知RM提交事务
+     + 如果各个分支事务状态不一致，TC通知RM回滚事务
+
+   ![image-20230419165505558](../../.vuepress/public/image-20230419165505558.png)
 
 
 
+### XA模式具体实现（代码）
+
+1. 修改application.yml文件（每个参与事务的微服务），开启XA模式。
+
+   ```yaml
+   seata:
+     data-source-proxy-mode: XA # 开启XA模式
+   ```
+
+2. 给发起全局事务的入口方法添加@GlobalTransactional注解。
+
+   ```java
+   @Override
+   // @Transactional
+   @GlobalTransactional
+   public Long create(Order order) {
+       // 创建订单
+       orderMapper.insert(order);
+       try {
+           // 扣用户余额
+           accountClient.deduct(order.getUserId(), order.getMoney());
+           // 扣库存
+           storageClient.deduct(order.getCommodityCode(), order.getCount());
+       } catch (FeignException e) {
+           log.error("下单失败，原因:{}", e.contentUTF8(), e);
+           throw new RuntimeException(e.contentUTF8(), e);
+       }
+       return order.getId();
+   }
+   ```
+
+   
+
+3. 重启服务，访问接口测试。
+
+### XA模式优缺点总结
+
+1. 优点
+   - 数据是强一致性，满足ACIS原则。
+   - 常用数据库都支持，实现简单，并且没有代码侵入。
+2. 缺点
+   - 因为一阶段需要锁定数据库资源，等待二阶段结束才释放，性能较差，舍弃了一部分可用性。
+   - 依赖关系型数据库实现事务。
+
+
+
+## Seata AT事务模式
+
+### AT模式理解
+
+1. Seata AT模式也是分阶段提交的事务模型，AT模式主要是弥补XA模式中资源锁定周期过长缺点。
+
+   ![image-20230419184653743](../../.vuepress/public/image-20230419184653743.png)
+
+
+
+### AT模式原理
+
+1. 例如，一个分支业务的SQL是这样的：update tb_account set money = money - 10 where id = 1；
+
+   ![image-20230419185822921](../../.vuepress/public/image-20230419185822921.png)
+
+
+
+### AT模式脏读问题
+
+1. Seata AT模式产生脏读的原因，事务A一阶段执行结束期间（二阶段未开始），事务B获取到DB锁进行数据修改，等事务B提交了事务后释放DB锁，事务A获取到DB锁之后进入二阶段，执行提交/回滚事务就会出现数据脏读问题。![image-20230419192237184](../../.vuepress/public/image-20230419192237184.png)
+
+### AT模式全局锁
+
+1. Seate为了解决脏读问题引入了全局锁的机制。全局锁由TC记录当前正在操作某行数据的事务，该事务持有全局锁，具备执行权。
+   全局锁通过：xid[事务ID]、table[表名]、pk[主键]组合生成一把锁，根据这三个条件就可以锁定一行数据。
+2. 分支事务（事务A）在开启事务到提交/回滚事务期间（一二阶段）会一直持有一把全局锁，在这期间其他事务不能修改这条数据（事务A还没释放这条数据对应的锁）。
+3. 简述AT模式加入全局锁的执行过程
+   + （1）事务A一阶段执行结束释放DB锁（全局锁未释放）。
+   + （2）事务B刚好钻空子获取到了DB锁。
+   + （3）事务B要开始更新数据了，发现该条数据的锁被占有了，尝试获取全局锁~~
+   + （4）此时事务A进入二阶段，要提交/回滚事务，发现DB锁资源被占有了？？
+   + （5）此时事务A持有全局锁尝试获取DB锁，事务B持有DB锁尝试获取全局锁，产生死锁了~~
+   + （6）其实Seatea内部有一个获取全局锁机制，获取全局锁间隔10ms一次，持续30次，依然获取不到全局锁就认定超时，立即回滚数据并且释放DB锁。
+   + （6）此时事务A获取到DB锁，该提交提交，该回滚回滚。
+
+### AT模式具体实现（代码）
+
+1. AT模式中的快照生成、回滚等动作都是由框架自动完成，没有任何代码侵入，因此实现非常简单。
+
+2. 新建数据表。
+
+   + lock_table导入到TC服务关联的数据库，记录全局锁信息。
+
+     ```sql
+     DROP TABLE IF EXISTS `lock_table`;
+     CREATE TABLE `lock_table`  (
+         `row_key` varchar(128) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+         `xid` varchar(96) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+         `transaction_id` bigint(20) NULL DEFAULT NULL,
+         `branch_id` bigint(20) NOT NULL,
+         `resource_id` varchar(256) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+         `table_name` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+         `pk` varchar(36) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
+         `gmt_create` datetime NULL DEFAULT NULL,
+         `gmt_modified` datetime NULL DEFAULT NULL,
+         PRIMARY KEY (`row_key`) USING BTREE,
+         INDEX `idx_branch_id`(`branch_id`) USING BTREE
+     ) ENGINE = InnoDB CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Compact;
+     
+     ```
+
+     
+
+   + undo_log表导入到微服务关联的数据库，记录undo日志信息。
+
+     ```sql
+     DROP TABLE IF EXISTS `undo_log`;
+     CREATE TABLE `undo_log`  (
+         `branch_id` bigint(20) NOT NULL COMMENT 'branch transaction id',
+         `xid` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'global transaction id',
+         `context` varchar(128) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'undo_log context,such as serialization',
+         `rollback_info` longblob NOT NULL COMMENT 'rollback info',
+         `log_status` int(11) NOT NULL COMMENT '0:normal status,1:defense status',
+         `log_created` datetime(6) NOT NULL COMMENT 'create datetime',
+         `log_modified` datetime(6) NOT NULL COMMENT 'modify datetime',
+         UNIQUE INDEX `ux_undo_log`(`xid`, `branch_id`) USING BTREE
+     ) ENGINE = InnoDB CHARACTER SET = utf8 COLLATE = utf8_general_ci COMMENT = 'AT transaction mode undo table' ROW_FORMAT = Compact;
+     
+     ```
+
+     
+
+3. 修改微服务模块的application.yml文件，将之前配置的XA模式改成AT模式。
+
+   ```yaml
+   seata:
+     data-source-proxy-mode: AT # 开启AT模式（默认就是AT）
+   ```
+
+   
+
+4. 重启服务，访问接口测试。
+
+### AT模式优缺点总结
+
+1. 优点
+   + 一阶段完成直接提交事务，释放数据库资源，性能比较好。
+   + 利用全局锁实现读写隔离。
+   + 没有代码侵入，框架自动完成回滚和提交。
+2. 缺点
+   + 面对多个事务分支时会产生大量的undo日志信息，性能上也会有一定的开销。
+   + 两阶段之间属于软状态，属于最终一致。
+
+
+
+## Seata TCC事务模式
+
+### TCC模式原理
+
+1. TCC模式和AT模式非常相似，每一个阶段都是独立事务，不同的是TCC通过人工编码来实现数据恢复。需要实现三个方法
+   + Try：资源的检测和预留。
+   + Confirm：完成资源操作业务，要求 Try 成功 Confirm 一定要能成功。
+   + Cancel：预留资源释放，可以理解为try的反向操作。
+
+### TCC模式案例
+
+1. 假如一个账户余额是100元，下单需要需要从余额扣减30。
+
+   - 一阶段（Try）：检查余额是否充足，如果充足则冻结金额增加30元，可用余额扣除30。
+
+     ![image-20230419203758997](../../.vuepress/public/image-20230419203758997.png)
+
+     
+
+   - 二阶段（Confirm）：假如要提交（Confirm），则冻结金额扣减30。
+
+     ![image-20230419203815141](../../.vuepress/public/image-20230419203815141.png)
+
+     
+
+   - 二阶段（Cancel）：假如要回滚（Confirm），则冻结金额扣减30，可用余额增加30。
+
+     ![image-20230419203849010](../../.vuepress/public/image-20230419203849010.png)
+
+   
+
+2. 可以发现，TCC模式一直操作的是冻结资源，通过这种手段（资源预留）也间接实现了事务隔离的特征。
+
+
+
+### TCC模式的空回滚和业务悬挂
+
+1. 空回滚
+   + 当某分支事务的try阶段阻塞时，可能导致全局事务超时而触发二阶段的cancel操作。在未执行try操作时先执行了cancel操作，这时cancel不能做回滚，就是空回滚。
+2. 业务悬挂
+   + 对于已经空回滚的业务，如果以后继续执行try，就永远不可能confirm或cancel，这就是业务悬挂。应当阻止执行空回滚后的try操作，避免悬挂
+
+### TCC模式具体实现（代码）
+
+1. 需求如下
+
+   + 修改account-service，编写try、confirm、cancel逻辑
+   + try业务：添加冻结金额，扣减可用金额
+   + confirm业务：删除冻结金额
+   + cancel业务：删除冻结金额，恢复可用金额
+   + 保证confirm、cancel接口的幂等性
+   + 允许空回滚
+   + 拒绝业务悬挂
+
+2. 为了实现空回滚、防止业务悬挂，以及幂等性要求。我们必须在数据库记录冻结金额的同时，记录当前事务id和执行状态，为此我们设计了一张表。
+
+   ```sql
+   CREATE TABLE account_freeze_tbl(
+       xid varchar(128) PRIMARY KEY NOT NULL,
+       user_id varchar(255) DEFAULT NULL COMMENT '用户id',
+       freeze_money int(11) unsigned DEFAULT '0' COMMENT '冻结金额',
+       state int(1) DEFAULT NULL COMMENT '事务状态，0:try，1:confirm，2:cancel'
+   );
+   ```
+
+3. 具体实现步骤
+
+   + Try业务
+     + 记录冻结金额和事务状态到account_freeze表。
+     + 扣减account表可用金额。
+   + Confirm业务
+     + 根据xid删除account_freeze表的冻结记录。
+   + Cancel业务
+     + 修改account_freeze表，冻结金额为0，state为2。
+     + 修改account表，恢复可用金额。
+   + 如何判断是否空回滚
+     + cancel业务中，根据xid查询account_freeze，如果为null则说明try还没做，需要空回滚。
+   + 如何避免业务悬挂
+     + try业务中，根据xid查询account_freeze ，如果已经存在则证明Cancel已经执行，拒绝执行try业务。
+
+   
+
+4. 声明TCC接口。
+
+   ```java
+   @LocalTCC
+   public interface TccService {
+       // Try逻辑，@TwoPhaseBusinessAction中的name属性要与当前方法名一致，用于指定Try逻辑对应的方法
+       @TwoPhaseBusinessAction(name = "prepare", commitMethod = "confirm", rollbackMethod = "cancel")
+       void prepare(@BusinessActionContextParameter(paramName = "param") String param);
+   
+   
+       // 二阶段confirm确认方法、可以另命名，但要保证与commitMethod一致
+       boolean confirm(BusinessActionContext context);
+   
+   
+       // 二阶段回滚方法，要保证与rollbackMethod一致
+       boolean cancel(BusinessActionContext context);
+   }
+   
+   ```
+
+5. 编写实现类实现TccService接口，从而代替之前的OrderServiceImpl。 按照具体实现步骤一步一步写即可~~~
+
+6. 重启服务，访问接口测试。
+
+### TCC模式优缺点总结
+
+1. 优点
+   + 一阶段完成直接提交事务，释放数据库资源，性能好。
+   + 相比AT模型，无需生成快照，无需使用全局锁，性能最强。
+   + 不依赖数据库事务，而是依赖补偿操作，可以用于非事务型数据库。
+2. 缺点
+   + 有代码侵入，需要人为编写try、Confirm和Cancel接口，太麻烦。
+   + 软状态，事务是最终一致。
+   + 需要考虑Confirm和Cancel的失败情况，做好幂等处理。
+
+## Seata SAGA事务模式
+
+### SAGA模式简介
+
+1. Saga模式是SEATA提供的长事务解决方案。也分为两个阶段：
+   + 一阶段：直接提交本地事务。
+   + 二阶段：成功则什么都不做；失败则通过编写补偿业务来回滚。
+
+### SAGA模式优缺点
+
+1. 优点：
+   + 事务参与者可以基于事件驱动实现异步调用，吞吐高
+   + 一阶段直接提交事务，无锁，性能好
+   + 不用编写TCC中的三个阶段，实现简单
+2. 缺点：
+   + 软状态持续时间不确定，时效性差
+   + 没有锁，没有事务隔离，会有脏写
+
+
+
+## Seata 四种模式对比
+
+|            | XA                             | AT                                           | TCC                                                  | SAGA                                                         |
+| ---------- | ------------------------------ | -------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| 一致性     | 强一致                         | 弱一致                                       | 弱一致                                               | 最终一致                                                     |
+| 隔离性     | 完全隔离                       | 基于全局锁隔离                               | 基于资源预留隔离                                     | 无隔离                                                       |
+| 代码入侵性 | 无                             | 无                                           | 有，要编写三个接口                                   | 有，要编写状态机和补偿业务                                   |
+| 场景       | 对一致性、隔离性有高要求的业务 | 基于关系型数据库的大多数分布式事务场景都可以 | 对性能要求较高的事务。有非关系型数据库要参与的事务。 | 业务流程长、业务流程多参与者包含其它公司或遗留系统服务，无法提供 TCC 模式要求的三个接口 |
 
 
 
