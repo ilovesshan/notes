@@ -3253,7 +3253,264 @@ Spring Cloud
 
 
 
+## Redis 数据持久化
 
+### Redis安装
+
+1. 下载redis压缩包，上传到linux指定目录并解压。
+
+   ```shell
+   tar -xvf redis-6.2.4.tar.gz
+   ```
+
+   
+
+2. 安装redis依赖
+
+   ```shell
+   yum install -y gcc tcl
+   ```
+
+   
+
+3. 编译redis（编译完成没报错就表示安装成功了）
+
+   ```shell
+   cd redis-6.2.4
+   make && make install
+   ```
+
+   
+
+4. 修改redis.conf文件中的一些配置
+
+   ```properties
+   # 绑定地址，默认是127.0.0.1，会导致只能在本地访问。修改为0.0.0.0则可以在任意IP访问
+   bind 0.0.0.0
+   # 数据库数量，设置为1
+   databases 1
+   ```
+
+5. 启动redis
+
+   + 启动redis-server（服务端）
+
+     ```shell
+     redis-server redis.conf
+     ```
+
+     
+
+   + 启动redis-cli（客户端）
+
+     ```shell
+     redis-cli
+     ```
+
+6. 停止redis
+
+   ```shell
+   redis-cli shutdown
+   ```
+
+   
+
+### 单点Redis存在的问题
+
+1. 数据丢失（Redis宕机了，会导致数据丢失）。
+   + 解决办法：实现Redis数据持久化。
+2. 并发能力（Redis将数据缓存在内存中，应对高并发场景时对内存要求极高）。
+   + 搭建主从集群，实现读写分离。
+3. 故障恢复（Redis一旦出现故障，导致数据丢失）。
+   + 利用Redis哨兵，实现健康检测和自动恢复。
+4. 存储能力（Redis将数据缓存在内存中，内存也是有限的存储空间）。
+   + 搭建分片集群，利用插槽机制实现动态扩容。
+
+
+
+### RDB持久化
+
+1. RDB全称Redis Database Backup file（Redis数据备份文件），也被叫做Redis数据快照。简单来说就是把内存中的所有数据都记录到磁盘中。当Redis实例故障重启后，从磁盘读取快照文件，恢复数据。
+
+   
+
+2. 快照文件称为RDB文件，默认是保存在当前运行目录。
+
+   + 在cli中执行save命令
+
+     ![image-20230420100230632](../../.vuepress/public/image-20230420100230632.png)
+
+   + server 端会受到信号，其实RDB命令是由Redis主进程来执行的（在这期间会阻塞所有命令）
+
+     ![image-20230420100338895](../../.vuepress/public/image-20230420100338895.png)
+
+   
+
+3. Redis停机时会执行一次RDB（手动停掉）。
+
+   ![image-20230420100513057](../../.vuepress/public/image-20230420100513057.png)
+
+   
+
+4. 在Redis serever 重启的时候，默认会读取RDB文件
+
+   ![image-20230420100630210](../../.vuepress/public/image-20230420100630210.png)
+
+
+
+### RDB触发规则
+
+1. Redis内部有触发RDB的机制，可以在redis.conf文件中找到
+
+   ```properties
+   # 900秒内，如果至少有1个key被修改，则执行bgsave ， 如果是save "" 则表示禁用RDB
+   save 900 1  
+   save 300 10  
+   save 60 10000 
+   ```
+
+2. RDB的其它配置也可以在redis.conf文件中设置
+
+   ```properties
+   # 是否压缩 ,建议不开启，压缩也会消耗cpu，磁盘的话不值钱
+   rdbcompression yes
+   
+   # RDB文件名称
+   dbfilename dump.rdb  
+   
+   # RDB文件保存的路径目录
+   dir ./ 
+   ```
+
+3. RDB会在什么时候执行？save 60 1000代表什么含义？
+
+   + 默认是服务停止时。
+   + 代表60秒内至少执行1000次修改则触发RDB。
+
+4. RDB的缺点？
+
+   + RDB执行间隔时间长，两次RDB之间写入数据有丢失的风险。
+   + fork子进程、压缩、写出RDB文件都比较耗时。
+
+
+
+### RDB方式bgsave的基本流程
+
+1. fork主进程得到一个子进程，共享内存空间。
+2. 子进程读取内存数据并写入新的RDB文件。
+3. 用新RDB文件替换旧的RDB文件。
+
+
+
+### AOF持久化
+
+1. AOF全称为Append Only File（追加文件）。Redis处理的每一个写命令都会记录在AOF文件，可以看做是命令日志文件。
+
+2. AOF默认是关闭的，需要修改redis.conf配置文件来开启AOF。
+
+   ```properties
+   # 是否开启AOF功能，默认是no
+   appendonly yes
+   # AOF文件的名称
+   appendfilename "appendonly.aof"
+   ```
+
+   
+
+3. AOF的命令记录的频率也可以通过redis.conf文件来配。
+
+   ```properties
+   # 表示每执行一次写命令，立即记录到AOF文件
+   appendfsync always 
+   # 写命令执行完先放入AOF缓冲区，然后表示每隔1秒将缓冲区数据写到AOF文件，是默认方案
+   appendfsync everysec 
+   # 写命令执行完先放入AOF缓冲区，由操作系统决定何时将缓冲区内容写回磁盘
+   appendfsync no
+   ```
+
+   
+
+4. AOF记录频率配置项
+
+   | **配置项** | **刷盘时机** | **优点**               | **缺点**                     |
+   | ---------- | ------------ | ---------------------- | ---------------------------- |
+   | Always     | 同步刷盘     | 可靠性高，几乎不丢数据 | 性能影响大                   |
+   | everysec   | 每秒刷盘     | 性能适中               | 最多丢失1秒数据              |
+   | no         | 操作系统控制 | 性能最好               | 可靠性较差，可能丢失大量数据 |
+
+   
+
+5. AOF重写机制阈值控制
+
+   + 因为是记录命令，AOF文件会比RDB文件大的多。而且AOF会记录对同一个key的多次写操作，但只有最后一次写操作才有意义。通过执行bgrewriteaof命令，可以让AOF文件执行重写功能，用最少的命令达到相同效果。
+
+   + Redis也会在触发阈值时自动去重写AOF文件。阈值也可以在redis.conf中配置
+
+     ```properties
+     # AOF文件比上次文件 增长超过多少百分比则触发重写
+     auto-aof-rewrite-percentage 100
+     # AOF文件体积最小多大以上才触发重写 
+     auto-aof-rewrite-min-size 64mb 
+     ```
+
+
+
+### RDB和AOF对比
+
+1. RDB和AOF各有自己的优缺点，如果对数据安全性要求较高，在实际开发中往往会结合两者来使用。
+
+   |                | RDB                                          | AOF                                                    |
+   | -------------- | -------------------------------------------- | ------------------------------------------------------ |
+   | 持久化方式     | 定时对整个内存做快照                         | 记录每一次执行的命令                                   |
+   | 数据完整性     | 不完整，两次备份之间会丢失                   | 相对完整，取决于刷盘策略                               |
+   | 文件大小       | 会有压缩，文件体积小                         | 记录命令，文件体积很大                                 |
+   | 宕机恢复速度   | 很快                                         | 慢                                                     |
+   | 数据恢复优先级 | 低，因为数据完整性不如AOF                    | 高，因为数据完整性更高                                 |
+   | 系统资源占用   | 高，大量CPU和内存消耗                        | 低，主要是磁盘IO资源但AOF重写时会占用大量CPU和内存资源 |
+   | 使用场景       | 可以容忍数分钟的数据丢失，追求更快的启动速度 | 对数据安全性要求较高常见                               |
+
+
+
+## Redis 主从
+
+### Redis 主从架构搭建
+
+### Redis 主从同步原理
+
+1. master如何判断slave是不是第一次来同步数据？这里会用到两个很重要的概念：
+
+   + Replication Id：简称replid，是数据集的标记，id一致则说明是同一数据集。每一个master都有唯一的replid，slave则会继承master节点的replid
+   + offset：偏移量，随着记录在repl_baklog中的数据增多而逐渐增大。slave完成同步时也会记录当前同步的offset。如果slave的offset小于master的offset，说明slave数据落后于master，需要更新。
+
+2. 因此slave做数据同步，必须向master声明自己的replication id 和offset，master才可以判断到底需要同步哪些数据。
+
+   
+
+### Redis 全量/增量同步流程
+
+1. 全量同步
+
+   + slave节点请求增量同步。
+   + master节点判断replid，发现不一致，拒绝增量同步。
+   + master将完整内存数据生成RDB，发送RDB到slave。
+   + slave清空本地数据，加载master的RDB。
+   + master将RDB期间的命令记录在repl_baklog，并持续将log中的命令发送给slave。
+   + slave执行接收到的命令，保持与master之间的同步。
+
+2. 主从第一次同步是全量同步，但如果slave重启后同步，则执行增量同步。
+
+   
+
+### Redis 全量/增量同步区别
+
+1. 简述全量同步和增量同步区别？
+   + 全量同步：master将完整内存数据生成RDB，发送RDB到slave。后续命令则记录在repl_baklog，逐个发送给slave。
+   + 增量同步：slave提交自己的offset到master，master获取repl_baklog中从offset之后的命令给slave
+2. 什么时候执行全量同步？
+   + slave节点第一次连接master节点时
+   + slave节点断开时间太久，repl_baklog中的offset已经被覆盖时
+3. 什么时候执行增量同步？
+   + slave节点断开又恢复，并且在repl_baklog中能找到offset时
 
 ## 环境依赖对照表
 
