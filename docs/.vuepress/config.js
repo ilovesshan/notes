@@ -88,6 +88,51 @@ export default {
         ]
       },
       {
+        text: '常见面试题',
+        children: [
+          {
+            text: '前端', children: [
+              { text: 'HTML', link: '/pages/Interview-question/html.md' },
+              { text: 'CSS', link: '/pages/Interview-question/css.md' },
+              { text: 'JavaScript', link: '/pages/Interview-question/javascript.md' },
+              { text: 'Vue2', link: '/pages/Interview-question/vue2.md' },
+              { text: 'Vue3', link: '/pages/Interview-question/vue3.md' },
+              { text: 'TypeScript', link: '/pages/Interview-question/typescript.md' },
+              { text: 'Pinia', link: '/pages/Interview-question/pinia.md' },
+            ]
+          },
+          {
+            text: '移动端', children: [
+              { text: 'android基础篇', link: '/pages/Interview-question/android-base.md' },
+              { text: 'android高级篇', link: '/pages/Interview-question/android-advance.md' },
+              { text: 'Dart', link: '/pages/Interview-question/dart.md' },
+              { text: 'Flutter基础篇', link: '/pages/Interview-question/flutter-base.md' },
+              { text: 'Flutter高级篇', link: '/pages/Interview-question/flutter-advance.md' },
+              { text: '小程序', link: '/pages/Interview-question/mp.md' },
+            ]
+          },
+          {
+            text: 'Java', children: [
+              { text: 'JavaSE', link: '/pages/Interview-question/javase.md' },
+              { text: 'MySQL', link: '/pages/Interview-question/mysql.md' },
+              { text: 'SSM', link: '/pages/Interview-question/ssm.md' },
+              { text: 'RabbitMQ', link: '/pages/Interview-question/rabbitmq.md' },
+              { text: 'ElasticSearch', link: '/pages/Interview-question/elasticsearch.md' },
+              { text: 'SpringBoot', link: '/pages/Interview-question/springboot.md' },
+              { text: 'SpringCloud', link: '/pages/Interview-question/springcloud.md' },
+            ]
+          },
+          {
+            text: '工具集', children: [
+              { text: 'Git', link: '/pages/Interview-question/git.md' },
+              { text: 'Docker', link: '/pages/Interview-question/docker.md' },
+              { text: 'Linux', link: '/pages/Interview-question/linux.md' },
+              { text: 'Maven', link: '/pages/Interview-question/maven.md' },
+            ]
+          },
+        ]
+      },
+      {
         text: '项目集合',
         children: [
           { text: '网捷回收', link: 'https://ilovesshan.github.io/wjhs-doc/', activeMatch: "/" }

@@ -121,7 +121,10 @@
          
      sed -i 's/download.docker.com/mirrors.aliyun.com\/docker-ce/g' /etc/yum.repos.d/docker-ce.repo
      
+     # 如果报错请使用下面这种方式
      yum makecache fast
+
+     dnf makecache
      ```
 
    + 然后输入命令，docker-ce为社区免费版本。稍等片刻，docker即可安装成功。
