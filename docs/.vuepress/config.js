@@ -85,6 +85,7 @@ export default {
           { text: 'Linux', link: '/pages/deploy/linux.md' },
           { text: 'Nginx', link: '/pages/deploy/nginx.md' },
           { text: 'Docker', link: '/pages/deploy/docker.md' },
+          { text: 'Git', link: '/pages/deploy/git.md' },
         ]
       },
       {
