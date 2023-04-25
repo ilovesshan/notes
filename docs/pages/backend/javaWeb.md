@@ -4424,3 +4424,110 @@ select id, username, account from account;
   + AppException
 
     
+
+## 完整依赖导入
+
+1. Tomcat10.x
+
+   ```xml
+   <!-- https://mvnrepository.com/artifact/jakarta.servlet/jakarta.servlet-api -->
+   <dependency>
+       <groupId>jakarta.servlet</groupId>
+       <artifactId>jakarta.servlet-api</artifactId>
+       <version>5.0.0</version>
+       <scope>provided</scope>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/jakarta.servlet.jsp/jakarta.servlet.jsp-api -->
+   <dependency>
+       <groupId>jakarta.servlet.jsp</groupId>
+       <artifactId>jakarta.servlet.jsp-api</artifactId>
+       <version>3.0.0</version>
+       <scope>provided</scope>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/jakarta.servlet.jsp.jstl/jakarta.servlet.jsp.jstl-api -->
+   <dependency>
+       <groupId>jakarta.servlet.jsp.jstl</groupId>
+       <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+       <version>3.0.0</version>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/jakarta.servlet.jsp.jstl/jakarta.servlet.jsp.jstl-api -->
+   <dependency>
+       <groupId>jakarta.servlet.jsp.jstl</groupId>
+       <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+       <version>3.0.0</version>
+   </dependency>
+   ```
+
+   
+
+2. Tomcat9.x
+
+   ```xml
+   <!-- https://mvnrepository.com/artifact/javax.servlet/javax.servlet-api -->
+   <dependency>
+       <groupId>javax.servlet</groupId>
+       <artifactId>javax.servlet-api</artifactId>
+       <version>4.0.1</version>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/javax.servlet.jsp/javax.servlet.jsp-api -->
+   <dependency>
+       <groupId>javax.servlet.jsp</groupId>
+       <artifactId>javax.servlet.jsp-api</artifactId>
+       <version>2.3.3</version>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/org.apache.taglibs/taglibs-standard-impl -->
+   <dependency>
+       <groupId>org.apache.taglibs</groupId>
+       <artifactId>taglibs-standard-impl</artifactId>
+       <version>1.2.5</version>
+       <scope>runtime</scope>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/org.apache.taglibs/taglibs-standard-spec -->
+   <dependency>
+       <groupId>org.apache.taglibs</groupId>
+       <artifactId>taglibs-standard-spec</artifactId>
+       <version>1.2.5</version>
+   </dependency>
+   ```
+
+   
+
+3. Tomcat8.x
+
+   ```xml
+   <!-- https://mvnrepository.com/artifact/javax.servlet/javax.servlet-api -->
+   <dependency>
+       <groupId>javax.servlet</groupId>
+       <artifactId>javax.servlet-api</artifactId>
+       <version>4.0.1</version>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/javax.servlet.jsp/javax.servlet.jsp-api -->
+   <dependency>
+       <groupId>javax.servlet.jsp</groupId>
+       <artifactId>javax.servlet.jsp-api</artifactId>
+       <version>2.3.3</version>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/javax.el/javax.el-api -->
+   <dependency>
+       <groupId>javax.el</groupId>
+       <artifactId>javax.el-api</artifactId>
+       <version>3.0.0</version>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/javax.servlet/jstl -->
+   <dependency>
+       <groupId>javax.servlet</groupId>
+       <artifactId>jstl</artifactId>
+       <version>1.2</version>
+   </dependency>
+   ```
+
+   

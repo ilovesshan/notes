@@ -89,3 +89,59 @@
    
 
 4. 通过nginx代理
+
+
+
+## MyBatis
+
+### MyBatis分页插件原理
+
+1. 使用 RowBounds 对象进行分页，它是针对 ResultSet 结果集执行的内存分页，而非物理分页。
+
+2. 首先将分页参数放入到ThreadLocal中，拦截执行的SQL，再根据数据库类型添加对应的分页语句重写SQL。
+
+   ```sql
+   # 原始SQL
+   select * from users where name like 'admin'
+   
+   # 转换后的SQL
+   select * from users where name like 'admin' limit offset, pageSize;
+   select count(*) from users where name like 'admin';
+   ```
+
+3. MyBatis使用分页插件
+
+   ```java
+   @Configuration
+   public class MybatisPlusConfig {
+       @Bean
+       public MybatisPlusInterceptor mybatisPlusInterceptor() {
+           MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+           PaginationInnerInterceptor paginationInnerInterceptor = new PaginationInnerInterceptor();
+           paginationInnerInterceptor.setDbType(DbType.MYSQL);
+           interceptor.addInnerInterceptor(paginationInnerInterceptor);
+           return interceptor;
+       }
+   }
+   ```
+
+
+
+### #{} 和 ${} 区别
+
+1. #{}：先进行SQL预编译，再进行占位符赋值，底层基于Preparedstatement实现，可以避免SQL注入。
+2. ${} ：直接进行sql语句拼接，再编译sql语句，底层基于Statement实现的，不能够防止sql注入，使用场景比较少，通常用于sql语句中特殊关键字进行处理。
+
+
+
+### ResultMap和ResultType区别
+
+1. 数据库表中的字段名和实体类中的属性完全一致时使用ResultMap。
+
+2. ResultMap和ResultType的功能类似，但是ResultMap更强大一点，ResultMap可以实现将查询结果映射为复杂类型的pojo。
+
+   + ResultMap标签的id属性是唯一的，和select标签的resultMap一致。
+
+   + association标签用来实现一对一的关系。
+   + collection标签用来实现一对多的关。
+
