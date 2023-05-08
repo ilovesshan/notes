@@ -104,7 +104,7 @@ export default {
           },
           {
             text: '移动端', children: [
-              { text: 'Android基础篇', link: '/pages/Interview-question/android.md' },
+              { text: 'Android', link: '/pages/Interview-question/android.md' },
               { text: 'Dart', link: '/pages/Interview-question/dart.md' },
               { text: 'Flutter', link: '/pages/Interview-question/flutter.md' },
               { text: '小程序', link: '/pages/Interview-question/mp.md' },
