@@ -104,11 +104,9 @@ export default {
           },
           {
             text: '移动端', children: [
-              { text: 'android基础篇', link: '/pages/Interview-question/android-base.md' },
-              { text: 'android高级篇', link: '/pages/Interview-question/android-advance.md' },
+              { text: 'Android基础篇', link: '/pages/Interview-question/android.md' },
               { text: 'Dart', link: '/pages/Interview-question/dart.md' },
-              { text: 'Flutter基础篇', link: '/pages/Interview-question/flutter-base.md' },
-              { text: 'Flutter高级篇', link: '/pages/Interview-question/flutter-advance.md' },
+              { text: 'Flutter', link: '/pages/Interview-question/flutter.md' },
               { text: '小程序', link: '/pages/Interview-question/mp.md' },
             ]
           },
