@@ -202,6 +202,325 @@
 
 
 
+### CustomScrollerView和NestedScroller区别？
+
++ CustomScrollerView是一个基于滚动的且可定制的Widget，定制布局时需要通过一系列的Sliver对象进行组合，常见的Sliver对象有：SliverAppBar、SliverList、SliverGrid、SliverPersistentHeader、SliverToBoxAdapter、SliverFillRemaining等等等。、
++ NestedScroller可以将一个特殊的Scrollable 对象放入到另一个对象中（在大多数情况下，方向不同）。
++ SingleChildScrollView和 NestedScrollView 都建立在CustomScrollerView之上。
+
+
+
+### 简单聊聊ListView的几种构建方式？
+
++ ListView构造器
+
+  + 直接传入一个Widget数组，用于展示固定数量的子Widget。
+
++ ListView.builder
+
+  + 通过传入IndexedWidgetBuilder（ctx，index）对象实现布局构建，可以实现动态布局效果，实现定制化更轻松，通过itemCount属性来指定子Widget的数量，如果不指定则无限。
+
+  + 此外ListView.builder还能够起到懒加载的效果，默认情况下只展示视窗内的子Widget(会向下偏移一端距离，这段距离的Widget也会被构建出来)。上滑时，顶部移除的Widget就不再展示了直接从内存移除，而下面的Widget也是按照懒加载的方式进行构建（缓存前3条，预加载后3条）。
+
+    ```
+    // 默认20条数据
+    // 视窗只能展示8条， 默认会向下偏移展示3条   第一次就只构建前11(8 + 3)条
+    // 上拉时，第5条被推到顶部，界面就只展示 5 - 12条， 向前偏移3条，第1条记录就会被移除， 同理第 12 - 16条数据就会被构建
+    ```
+
+    
+
++ ListView.separated
+
+  + 可以通过传入一个IndexedWidgetBuilder对象为每一项Widget指定一个自定义的Widget（下划线），剩下的用法和ListView.builder一样。
+
++ ListView.custom
+
+  + 其实builder + separated方式都是custom方式的“快捷方式”。因为 ListView*内部是靠这个 SliverChildDelegate属性动态初始化子元素的。
+  + 我们使用builder和separated比较多，这个custom相对来说就比较少了。
+
+
+
+### 有用过FutureBuilder吗？简单聊聊？
+
+1. 在不使用StatefullWidget情况下，通过FutureBuilder可以实现异步刷新UI的功能。
+
+   
+
+2. FutureBuilder有两个重要参数：future和builder。
+
+   + future：用于处理异步任务（读取文件/复杂计算过程/请求网络数据），结果返回一个future对象。
+
+     ```dart
+     future: Future.delayed(Duration(seconds: 3), () =>return "ok")
+     ```
+
+     
+
+   + builder：当future的状态发生改变时builder就会被回调，结果返回一个Widget。
+
+     ```dart
+     /// snapshot当前Future的快照信息
+     builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+         /// snapshot.connectionState可以获取当前Future的状态（none、waiting、active、done）
+         /// none：当future为null时
+         /// waiting：future状态处于pedding时
+         /// active：用于监听stream流，仅当
+         /// done：future状态处于complected时
+     
+         /// snapshot.hasError future中是否有错误， snapshot.error 获取错误信息
+         /// snapshot.hasData future中是否有数据， snapshot.data 获取数据
+     }
+     ```
+
+   
+
+3. FutureBuilder还可以传入一个默认值，通过initialData属性。
+
+   ```dart
+   final T? initialData;
+   ```
+
+   
+
+4. 看一个实例
+
+   ```dart
+   FutureBuilder(
+       future: Future.delayed(Duration(seconds: 3), () {
+           if (Random().nextInt(100) > 50) {
+               return "success";
+           } else {
+               throw "error";
+           }
+       }),
+       builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+           if (snapshot.connectionState == ConnectionState.done) {
+               if (snapshot.hasError) {
+                   return Column(
+                       mainAxisAlignment: MainAxisAlignment.center,
+                       children: [Icon(Icons.error, size: 30, color: Colors.red), SizedBox(height: 10), Text("${snapshot.error}")],
+                   );
+               }
+               return Column(
+                   mainAxisAlignment: MainAxisAlignment.center,
+                   children: [Icon(Icons.done, size: 30, color: Colors.green), SizedBox(height: 10), Text("${snapshot.data}")],
+               );
+           } else {
+               return CircularProgressIndicator();
+           }
+       },
+   )
+   ```
+
+   
+
+   
+
+### 有用过StreamBuilder吗？简单聊聊？
+
+1. 使用StreamBuilder和使用FutureBuilder用法很相似，都传入一个future和builder，同时也可以传入默认值，仅仅需要注意的是：获取future的数据时（不管是失败还是成功），都需要在 active 时获取，因为StreamBuilder监听的是Stream，Stream不像是Future只有一个结果，Stream是可能有多个结果的，显然在done（Stream被关闭）的状态下获取数据肯定是不合适的。
+
+   ```dart
+   if (snapshot.connectionState == ConnectionState.active) {
+       if (snapshot.hasError) {
+           return Text("${snapshot.error}");
+       }
+       return return Text("${snapshot.data}");
+   }
+   ```
+
+   
+
+2. 创建流的方式
+
+   ```dart
+   /// 创建 间隔重复发出事件的流
+   final Stream _stream1 = Stream.periodic(Duration(seconds: 3), (i) {
+       int randomValue = Random().nextInt(100);
+       if (randomValue > 50) {
+           return "$randomValue > 50, success";
+       } else {
+           return "$randomValue < 50, error";
+       }
+   });
+   
+   
+   
+   /// 创建单个流， 此流发出 [value] 的单个数据事件，然后以 done 事件完成。
+   final Stream _stream2 = Stream.value("ok");
+   
+   
+   
+   /// 创建普通流控制器，允许在流上发送数据、错误和完成事件，也可以被其他人所监听获取当前流的状态信息
+   final StreamController _streamController = StreamController();
+   /// 添加数据
+   _streamController.sink.add("ok");
+   /// 添加异常信息
+   _streamController.sink.addError("error");
+   /// 添加流
+   _streamController.sink.addStream(Stream.empty());
+   /// 监听流
+   _streamController.stream.listen((event) {
+       Log.e("listener  Stream $event");
+   });
+   
+   
+   
+   /// 创建广播流类型的控制器（和普通流控制器用法相似，下面说区别）
+   final StreamController _streamController = StreamController.broadcast();
+   ```
+
+   
+
+3. 广播流和普通流的区别
+
+   + 普通的Stream只能被一个listener或者StreamBuilder监听，广播流可以被多个listener或者StreamBuilder监听。
+
+   + 普通的Stream会有数据缓存，广播流没有缓存数据。
+
+     ```dart
+     Future.delayed(Duration.zero, () {
+         for (int i = 0; i < 10; i++) {
+             _simpleStream.sink.add(i);
+             _broadcastController.sink.add(i);
+         }
+     });
+     
+     Future.delayed(Duration(seconds: 3), () {
+         _simpleStream.stream.listen((event) {
+             Log.e("_simpleStream listener $event");
+         });
+     
+         _broadcastController.stream.listen((event) {
+             Log.e("_broadcastController listener $event");
+         });
+     });
+     ```
+
+
+
+### Flutter动画有那些常用的类或者API？
+
+1. 常用的类和相关API
+
+   + Animation抽象类，动画基类。
+
+     ```dart
+     abstract class Animation<T> 
+     ```
+
+   + AnimationController动画控制器类（重点），可以控制动画执行方向或者获取动画执状态，监听动画等等。
+
+     ```dart
+     class AnimationController extends Animation<double>
+     ```
+
+     ```dart
+     AnimationController _animationController =  AnimationController(
+         /// vsync信号同步量， 收不到vsync时动画会停止运行(App处于后台/当前Page不可见情况)
+         vsync: this,
+         /// 动画执行时间
+         duration: Duration(seconds: 1),
+         /// 动画开始执行时的值（默认0.0）
+         lowerBound: 0.0,
+         /// 动画执行结束时的值（默认1.0）
+         upperBound: 1.0,
+     );
+     ```
+
+     ```dart
+     /// 向前后执行动画（正向）
+     _animationController.forward();
+     
+     /// 向前执行动画（反向）
+     _animationController.reverse();
+     
+     /// 重置动画(将控制器的值设置为lowerBound，停止动画（如果正在进行），并重置为其起点或关闭状态)
+     _animationController.reset();
+     
+     /// 将动画从当前值驱动到目标
+     _animationController.animateTo(0.5);
+     
+     /// 监听动画值的改变
+     _animationController.addListener(() {});
+     
+     /// 监听动画值的改变
+     _animationController.addStatusListener((AnimationStatus status) {
+         /// status 动画的状态，AnimationStatus是一个枚举有四个枚举值(dismissed、forward、reverse、completed)
+         /// dismissed: animation is stopped at the beginning(未开始)
+         /// forward: animation is running from beginning to end（向后执行）
+         /// reverse: animation is running backwards, from end to beginning（向前执行）
+         /// completed: The animation is stopped at the end（执行结束）
+     });
+     ```
+
+   + CurvedAnimation类，指定动画执行的方式（线性、先快后慢、先慢后快等等...）。
+
+     ```dart
+     class CurvedAnimation extends Animation<double>
+     ```
+
+     
+
+   + Tween类，指定动画执行的值范围（AnimationController默认是0.0-1.0）。
+
+     ```dart
+     class Tween<T extends Object?> extends Animatable<T>
+     ```
+
+   
+
+2. AnimatedBuilder 和 AnimatedWidget
+
+   + 在不使用AnimatedBuilder 和 AnimatedWidget情况下，想要刷新UI需要通过setState，setState会让build方法重新运行，大多数场景下，我们仅仅希望需要做动画展示的Widget被build而不要让其他的Widget也被build。
+   + 这时AnimatedBuilder 和 AnimatedWidget也就是来解决这个问题的，实际开发者AnimatedBuilder （用的多）比AnimatedWidget使用更方便。
+
+   
+
+3. 交织动画，实现也很简单，多创建几个Tween即可，一个Tween对应一个动画的应用场景。
+
+   ```dart
+   _animationController = AnimationController(vsync: this, duration: Duration(seconds: 1));
+   _animation = CurvedAnimation(parent: _animationController, curve: Curves.linear);
+   
+   /// 颜色变化
+   _colorAnimation = ColorTween(begin: Colors.blue, end: Colors.red).animate(_animationController);
+   
+   /// 大小变化
+   _sizeAnimation = Tween(begin: 150.0, end: 0.0).animate(_animationController);
+   
+   /// 位置变化
+   _positionAnimation = Tween(begin: 45.0, end: 0.0).animate(_animationController);
+   
+   /// 透明的变化
+   _opacityAnimation = Tween(begin: 1.0, end: 0.0).animate(_animationController);
+   ```
+
+   ```dart
+   AnimatedBuilder(
+       animation: _animationController,
+       builder: (ctx, child) {
+           return Transform(
+               alignment: Alignment.center,
+               transform: Matrix4.rotationZ(_positionAnimation.value),
+               child: Opacity(
+                   opacity: _opacityAnimation.value,
+                   child: Container(width: _sizeAnimation.value, height: _sizeAnimation.value, color: _colorAnimation.value),
+               ),
+           );
+       },
+   )
+   ```
+
+   
+
+4. Hero动画，在两个Widget（Page）进行切换时，对位置、外观上的差异变化进行动画、过渡描述。
+
+   + 需要注意：两边的Widget都需要绑定相同的TAG（除此之外需要保证TAG地唯一性）。
+
+
+
 ### Widget的生命周期是怎么样？
 
 1. statelessWidget的生命周期，因为是无状态Widget且不会自己重新构建自己。生命周期比较简单。
@@ -643,6 +962,34 @@
 1. 热重载（hot reload）：会将代码更改转入 VM，重建 widget 树并保持应用的状态，整个过程不会重新运行 `main()` 或者 `initState()`。
 2. 热重启（hot restart）：会将代码更改转入 VM，重启 Flutter 应用，不保留应用状态。
 3. 完全重启（start）： 将会完全重新运行应用。该进程较为耗时，因为它会重新编译原生部分代码。在 Web 平台上，它同时会重启 Dart 开发编译器。完全重启并没有既定的快捷键，你需要手动停止后重新运行。
+
+
+
+### 了解Flutter编译模式吗？
+
+1. Flutter编译模式一共分成三种：release、profile、debug，三种模式都有自己的特点。
+2. release模式特点
+   + 使用AOT（ahead of time）预编译模式，将Dart代码预编译为机器码，通过编译器生成对应平台（android/ios）能够直接运行的代码。运行速度快，执行性能好。
+   + 此模式关闭了所有的调试工具，只允许在真机上运行。
+3. profile模式特点
+   + profile模式和release模式类似，都使用AOT预编译模式。
+   + 他们最大的区别就是：profile模式支持DevTools来检测应用的性能，做性能调试分析，release模式不支持。
+4. debug模式特点
+   + debug模式使用了JNI（just in time）即时编译模式，该模式的典型应用就是热重载（hot reload）。
+   + debug模式，一般是应用于开发模式，支持调试信息、服务扩展、DevTools工具、支持模拟器和整机调试。
+
+
+
+### 谈谈你对Flutter性能优化的理解?
+
+1. 避免在build方法中执行耗时操作，因为build方法随时都有可能被执行，过多的耗时操作代码会阻塞导致UI卡顿，可以将一般耗时操作通过Future转换成异步的方式完成，对于CPU计算频繁的操作（/音视频转码/图片压缩/复杂的逻辑计算）可以考虑开启isolate充分利用CPU多核心来完成。
+2. 避免在build方法中堆叠大量的widget，应将widget拆小避免直接返回一个巨大的widget，跟细粒度的拆分能够使widget得到充分的复用（具体看业务需求）。
+3. 尽可能使用const构造器，当父widget更新了子widget也不会重新进行rebuild操作，特别是针对于一些长期不修改的组件，例如：通用的error/loading/empty等等组件。
+4. 尽量不使用ListView或者GridView的默认构造方法，而是使用他们各自的build方法，默认构造方法会让列表中所有的数据一次性绘制出来，build方法只绘制可见列表（缓存前3条，预加载后3条），类似于Android中的RecycleView。懒加载而不是一次性绘制所有的子widget，这样视图初始化的时间就减少了。
+5. 静态资源最好走CDN，过多的静态资源存放在本地，久而久之会导致包体积变大。
+6. 上传图片上传时进行图片压缩，减轻服务器压力，下载图片时最好使用缓存/图片预加载等技术。
+7. 可以适当的将对个请求合并成一个请求（看业务需求），从而减少网络IO耗时。
+8. 对于耗时操作（文件io/网络请求/json解析/音视频转码/图片压缩等等）建议通过创建子isolate来执行，避免在主isolate中执行耗时操作。
 
 
 
