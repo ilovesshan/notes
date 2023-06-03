@@ -15,6 +15,332 @@
 
 
 
+### Flutter架构体系？
+
+1. Flutter 被设计为一个可扩展的分层系统。它可以被看作是各个独立的组件的系列合集，上层组件各自依赖下层组件。组件无法越权访问更底层的内容，并且框架层中的各个部分都是可选且可替代的，由三大部分组成：FrameWork层、Engine层、Embedder层。
+
+   ![image-20230602194554364](../../.vuepress/public/image-20230602194554364.png)
+
+   
+
+2. Flutter的FrameWork层是用Dart语言封装的一套开发类库，它实现了一套基础库。主要包含Material（Android风格UI）和Cupertino（iOS风格）的UI界面，下面是通用的Widgets（组件），之后是一些动画、绘制、渲染、手势库等。这个纯 Dart实现的 SDK被封装为了一个叫作 dart:ui的 Dart库。我们在使用 Flutter写 App的时候，直接导入这个库即可使用组件等功能。
+
+   
+
+3. Flutter的Engine层毫无疑问是 Flutter 的核心，它主要使用 C++ 编写。当需要绘制新一帧的内容时，引擎将负责对需要合成的场景进行栅格化，它提供了 Flutter 核心 API 的底层实现，包括图形（通过 Skia 2D引擎）、文本布局、文件及网络 IO、辅助功能支持、插件架构和 Dart 运行环境及编译环境的工具链。
+
+   + 光栅化是把绘制指令转换成对应的像素数据，合成是把各图层栅格化后的数据进行相关的叠加和特性处理。
+
+   + Skia 2D的绘图引擎库，Skia 在图形转换、文字渲染、位图渲染方面都提供了友好、高效的表现。Skia是跨平台的，所以可以被嵌入到 Flutter的 iOS SDK中，Android自带了 Skia 2D，所以 Flutter Android SDK要比 iOS SDK小很多。
+   + 引擎将底层 C++ 代码包装成 Dart 代码，通过 dart:ui 暴露给 Flutter 框架层。该库暴露了最底层的原语，包括用于驱动输入、图形、和文本渲染的子系统的类。
+
+   
+
+4. 嵌入层（Embedder）：嵌入层基本是由平台对应的语言实现的，例如：在Android上是由Java和C++实现；在iOS是由Objective-C/Objective-C++实现。嵌入层为Flutter系统提供了一个入口，Flutter系统通过该入口访问底层系统提供的服务，例如输入法，绘制surface等。
+
+
+
+### 移动端跨平台解决方案以及各自优缺点？
+
+1. 通过webView
+
+   + iOS端有UIWebView, Android端WebView，代表有PhoneGap, Apache Cordova, Ionic等。
+   + 主要是通过Html, Css，JS开发页面。对于调用的一些本地服务如相机，蓝牙等。需要通过JS进行桥接调用Native功能的一些功能代码，本身的性能和体验并不理想。
+
+   
+
+2. React Native、UniApp
+
+   + RN是FaceBook早先开源的JS框架React在原生移动平台的衍生产物，目前支持iOS和安卓两大平台。RN是使用JS语言，使用类似于HTML的JSX， 以及CSS来做移动开发。
+
+   + RN使用原生自带的UI组件实现核心的渲染引擎，从而保证了良好的渲染性能。但是RN的本质是通过JavaScript VM调用原生接口，通信相对比较低效，并且框架本身不负责渲染，而是间接通过原生进行渲染的。
+
+     
+
+3. Flutter
+
+   + Flutter拥有自渲染闭环，是理想的跨平台框架
+
+     + Android渲染流程
+
+       + 通过Java/kotlin语言调用Android框架提供的framework的API 写出页面布局。
+       + 页面布局通过Android中freamework进行翻译，将翻译结果交给Skia。
+       + Skia给CPU/GPU 提供数据进行渲染。
+
+     + Flutter渲染流程
+
+       + 通过Dart语言，调用Flutter的FremeWork层API写出页面布局。
+       + 页面布局通过Flutter框架中framework进行翻译，将翻译的结果提交给Skia。
+       + Skia给CPU/GPU 提供数据进行渲染。
+
+     + RN渲染流程
+
+       + 通过JS，CSS，HTML等调用React框架提供的API编写页面布局。
+       + React框架通过JavaScript VM、 Bridge将JS布局转换成原生布局。
+       + 原生页面布局通过Android中framework层进行翻译，将翻译的结果提交给Skia。
+       + Skia给CPU/GPU 提供数据进行渲染。
+
+       
+
+   + 从上面可以发现，Flutter和安卓的渲染流程是一样的。但是RN渲染流程增加了一步需要桥接才能将JS布局转换成原生布局，所以RN的性能没有Flutter的高。
+
+   + Flutter不需要依赖原生控件，利用Skia绘图引擎，直接通过CPU，GPU进行绘制。和安卓的原生绘制流程一样。
+
+   + 而像RN框架，必须先通过桥接的方式转成原生调用，然后再进行渲染。存在性能消耗。
+
+
+### Flutter的绘制原理？
+
+1. Flutter的绘制流程
+
+   + GPU将vsync信号同步到UI线程
+   + UI线程利用Dart将Flutter代码构建成图层树Layer Three
+   + 图层树在GPU线程内进行Compositer合成
+   + Compositer合成的结果交给Skia引擎进行渲染
+   + Skia引擎的渲染结果通过OpenGL或者VulKan交给GPU绘制
+   + GPU将绘制结果放入到双缓存中的Back Buffer中，当下一个Vsync来时，   系统从Back buffer将当前帧数据复制到Frame Buffer并产生新的一轮GPU/CPU绘制过程。
+
+   
+
+2. Flutter的绘制流程画图理解
+
+   ![image-20230603134815274](../../.vuepress/public/image-20230603134815274.png)
+
+   
+
+3. 图像的显示原理
+
+   + 屏幕上看到的任何东西都是图像，例如：图片、视频、GIT动图等等。
+   + 当图像的连续播放频率超过16帧时人的肉眼会感觉到很流畅，相反当小于16帧时就会感到卡顿。
+
+   
+
+4. 帧率和刷新率的关系
+
+   + 帧率：每秒钟生成多少帧图像。
+   + 刷新率：显示屏的频率，比如iPhone的屏幕每秒刷新60下，表示为60Hz。
+   + GPU/CPU生成的图像（每秒生成多少张图片是帧率）会放入到Buffer中，屏幕从Buffer中取图像刷新（每秒刷新多少次是刷新率）后显示。
+
+   
+
+5. 撕裂问题和双重缓存和VSync
+
+   + 产生撕裂问题原因：当GPU/CPU在新的一帧图片写入一般时，屏幕从Buffer中取图像并进行展示，此时就会出现一张上半部分和下半部分不一致的图像。这种情况我们称为“tearing”（撕裂）。
+   + 双重缓存和VSync：双重缓存和VSync主要是解决撕裂问题。
+     + 双重缓存指的是：Back Buffer 和 Frame Buffer， GPU向Back Buffer写数据，屏幕从Frame Buffer读数据。
+     + VSync是一个信号，它负责从Back Buffer到Frame Buffer的复制操作（底层使用的是指针交换，所以效率很高）。
+     + 某一个时间点，一个屏幕刷新周期完成就会产生一个新的Vsync信号，先完成复制操作再通知CPU/GPU绘制一帧图像，在这种模型下，只有当VSync信号产生时，CPU/GPU才开始绘制。
+
+   
+
+6. 双重缓存存在的问题以及解决办法
+
+   + 双重缓存的缺陷：当CPU/GPU绘制一帧的时间过长（比如超过16ms一个刷新周期时），会产生Jank（画面停顿，甚至空白），VSync信号是在一个刷新周期结束后产生的。
+   + 三重缓存：在每次VSync信号来时，多缓存一个Buffer作为备用。
+
+
+
+### 了解过Flutte的Vsync 信号吗？
+
+1. Flutte的Vsync 信号主要是协调显示器与GPU/CPU的工作，Vsync 信号可同步显示流水线。
+
+   
+
+2. 显示器按照一定的刷新频率从Buffer中（GPU/CPU渲染结果会放入到Buffer中）获取数据，就可以完成图像的更新。现在的手机屏幕一般有60HZ、90HZ、120HZ，以60HZ为例，屏幕每秒会发出 60 个 VSync 垂直同步信号，GPU/CPU每秒绘制的图像帧数叫做：帧率，如果帧率速率大于屏幕刷新率，屏幕上显示的内容就有可能是两个图像的不完全内容，造成图像撕裂，VSync 垂直信号可以保证刷新频率的统一。
+
+3. 
+
+### 谈谈你对Widget构建过程的理解？
+
+1. 创建Widget时会创建一个对应的Element。
+
+2. 在Element中会做几件事情：
+
+   + 调用Element的mount方法 本质是调用自己写的Widget的build方法，Element中通过_widget来保存build方法返回的引用。
+
+     + 调用build的形式分成两种情况：
+       + StatelessWidget：_widget = Widget.build(BuildContext context)
+       + StatefullWidget：__widget = _state.build(BuildContext context), 因为StatefullWidget的布局都在State中。
+       + BuildContext解释：BuildContext本质就是当前的Element对象，传递context对象的根本原因是因为：当Widget重新build的时候来确定Element的位置以及数据信息。
+
+   + 如果Element是一个RenderElement，调用createRenderObject方法创建对象并通过_renderObject引用保存。
+
+     + _renderObject = createRenderObject()
+
+   + 如果Element是一个StatefullElement，调用createState来创建一个State对象，并通过_state对象来保存引用。
+
+     + _state = createState();
+     + _state.widget = _widget; 这一步刚好就是：为什么我们能够在State中能通过this.widget去访问父Widget的数据的根本原因。
+
+     
+
+### Flutter中自定义View的流程？
+
+1. 已有控件（widget）的继承，组合。
+2. 自定义绘制widget,也就是利用paint，cavans等进行绘制自定义视图。
+
+
+
+### 聊聊Flutter国际化解决方案？
+
+1. Flutter给我们提供的Widget默认情况下就是支持国际化，但是在没有进行特别的设置之前，它们无论在什么环境都是以英文的方式显示的。如果想要添加其他语言就需要添加：lutter_localizations依赖。
+
+   ```
+   flutter_localizations:
+     sdk: flutter
+   ```
+
+   
+
+2. 实现国际化方式有两种，手动配置和借助插件配置(基于手动配置做了简化)，下面先介绍手动配置：
+
+   + 在MaterialApp中配置国际化信息，supportedLocales和localizationsDelegates需要同时指定。
+
+     ```dart
+     MaterialApp(
+         /// 支持的语种[支持的语言环境]
+         supportedLocales: const [Locale('en', 'US'), Locale('zh', 'CN')],
+     
+         /// 为多种语言提供本地化数据[本地化委托]
+         localizationsDelegates: [
+             GlobalMaterialLocalizations.delegate,
+             GlobalWidgetsLocalizations.delegate,
+             GlobalCupertinoLocalizations.delegate,
+         ],
+         home: HomePage(),
+     )
+     ```
+
+     
+
+   + 定义国际化数据资源（新增的数据，需要手动添加getter方法，后期维护也很困难，所以下面会介绍通过插件自动生成来解决这个痛点）。
+
+     ```dart
+     class AppLocalizations {
+         final Locale locale;
+     
+         AppLocalizations(this.locale);
+     
+         Map<String, Map<String, String>> localizations = {
+             "en": {"appTitle": "hello world~", "btnText": "show current time"},
+             "zh": {"appTitle": "你好 世界~", "btnText": "展示当前时间"},
+         };
+     
+         String? get appTitle => localizations[locale.languageCode]!["appTitle"];
+     
+         String? get btnText => localizations[locale.languageCode]!["btnText"];
+     }
+     ```
+
+     
+
+   + 自定义Delegate提供数据，别忘了在MaterialApp的localizationsDelegates中进行配置。
+
+     ```dart
+     import 'package:flutter/foundation.dart';
+     import 'package:flutter/material.dart';
+     
+     class AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+         static AppLocalizationsDelegate delegate = AppLocalizationsDelegate();
+     
+         static AppLocalizations? of(BuildContext context) => Localizations.of<AppLocalizations>(context, AppLocalizations);
+     
+         /// 是否支持该语种
+         @override
+         bool isSupported(Locale locale) => ["en", "zh"].contains(locale.languageCode);
+     
+         /// Widget进行重新构建时，是否需要重新加载语种资源
+         @override
+         bool shouldReload(covariant LocalizationsDelegate<AppLocalizations> old) => false;
+     
+         /// 重新加载语种资源（可以是读取本地json文件，也可以加载网络资源）
+         @override
+         Future<AppLocalizations> load(Locale locale) {
+             return SynchronousFuture(AppLocalizations(locale));
+         }
+     }
+     
+     ```
+
+     ```dart
+     localizationsDelegates: [
+         /// ...
+         /// 自定义的delegate
+         AppLocalizationsDelegate.delegate
+     ],
+     ```
+
+     
+
+   + 使用定义的语种资源，此时APP就会根据系统语言类型来选择合适的语种数据进行展示。
+
+     ```dart
+     AppBar(title: Text(AppLocalizationsDelegate.of(context)!.appTitle!)),
+     Text(AppLocalizationsDelegate.of(context)!.btnText!)
+     ```
+
+   
+
+3. 借助插件配置（Flutter Intl）
+
+   + 先安装插件，需要重启IDEA。
+
+   + 选择：Tools ->   Flutter Intl  ->  Initialize for the Project，稍等一会就在lib目录下会自动生成两个文件夹generated和i10n。
+
+     + 注意，默认情况下会自动在pubspec.yml文件添加一下配置（如果没有，则自行添加）。
+
+       ```yaml
+       flutter_intl:
+         enabled: true
+       ```
+
+     + generated：里面的文件主要是来辅助生成delegate和支持的语言环境。
+
+     + i10n：里面的文件主要是提供本地化数据资源。
+
+       + 在intl_en.arb添加数据（en标识英文）
+
+         ```json
+         {
+             "@@locale": "en",
+             "appTitle": "hello world~",
+             "btnText": "show current time"
+         }
+         ```
+
+         
+
+       + 添加中文支持，Tools ->   Flutter Intl  -> add local，输入zh，回车就会在i10n目录下生成intl_zh.arb文件。
+
+         ```json
+         {
+             "@@locale": "zh",
+             "appTitle": "你好 世界~",
+             "btnText": "展示当前时间"
+         }
+         ```
+
+         
+
+   + 在MaterialApp的localizationsDelegates中进行配置
+
+     ```dart
+     localizationsDelegates: [
+         S.delegate,
+     ],
+     ```
+
+     
+
+   + 使用定义的语种资源（getter插件会帮助我们自动生成）
+
+     ```dart
+     AppBar(title: Text(S.current.appTitle))
+     Text(S.of(context).btnText)
+     ```
+
+     
+
 ### MVC、MVP、MVVM的优缺点？
 
 1. 不管是MVC、MVP还是MVVM他们要做的都只有一个目的那就是将业务代码和视图代码进行分离。
@@ -61,19 +387,38 @@
 ### Application、Module、Plugin、Package区别？
 
 1. Application：主体是Flutter，其中包含iOS、Android、web等项目。
-
 2. Module：主要用于原生ios和android嵌入Flutter项目，用于原生和Flutter混合开发。
-
 3. Plugin：在Flutter中实现不了的功能，可以通过Plugin方式调用原生能力来实现。
-
 4. Package：纯Dart语言编写的模块，不需要原生代码实现，没有Android iOS目录。
+
+
+
+### 如何区分是一个Android还是Flutter应用？
+
+1. 目前Android 平台的应用通过开启开发者模式里的：开发者选项 -> 显示布局边界 分辨出来。
+2. 原生应用的每个控件都会用边框分割出来，而 Flutter 的应用页面无边界分割，是个整体的SurfaceView。
+
+
+
+### Flutter如何监听某个组件已经渲染完毕？
+
+1. 监听某个组件是否已经渲染完成，使用 WidgetsBinding ，方法是在 initstate 或者 build 中注册回调。
+
+   ```dart
+   WidgetsBinding.instance.addPostFrameCallback((callback){
+       print("render complete");
+   });
+   ```
 
    
 
-### Flutter的FrameWork和Engine层？
+### Flutter 如何实现复制到剪贴板？
 
-1. Flutter的FrameWork层是用Dart语言封装的一套开发类库，它实现了一套基础库。主要包含Material（Android风格UI）和Cupertino（iOS风格）的UI界面，下面是通用的Widgets（组件），之后是一些动画、绘制、渲染、手势库等。这个纯 Dart实现的 SDK被封装为了一个叫作 dart:ui的 Dart库。我们在使用 Flutter写 App的时候，直接导入这个库即可使用组件等功能。
-2. Flutter的Engine层是Skia 2D的绘图引擎库，Skia 在图形转换、文字渲染、位图渲染方面都提供了友好、高效的表现。Skia是跨平台的，所以可以被嵌入到 Flutter的 iOS SDK中，Android自带了 Skia，所以 Flutter Android SDK要比 iOS SDK小很多。
+```dart
+void setClipData(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+}
+```
 
 
 
@@ -660,43 +1005,32 @@
 
 
 
-### FlutterWidget渲染流程？
-
-1. 创建Widget时会创建一个对应的Element。
-
-2. 在Element中会做几件事情：
-
-   + 调用Element的mount方法 本质是调用自己写的Widget的build方法，Element中通过_widget来保存build方法返回的引用。
-
-     + 调用build的形式分成两种情况：
-       + StatelessWidget：_widget = Widget.build(BuildContext context)
-       + StatefullWidget：__widget = _state.build(BuildContext context), 因为StatefullWidget的布局都在State中。
-       + BuildContext解释：BuildContext本质就是当前的Element对象，传递context对象的根本原因是因为：当Widget重新build的时候来确定Element的位置以及数据信息。
-
-   + 如果Element是一个RenderElement，调用createRenderObject方法创建对象并通过_renderObject引用保存。
-
-     + _renderObject = createRenderObject()
-
-   + 如果Element是一个StatefullElement，调用createState来创建一个State对象，并通过_state对象来保存引用。
-
-     + _state = createState();
-     + _state.widget = _widget; 这一步刚好就是：为什么我们能够在State中能通过this.widget去访问父Widget的数据的根本原因。
-
-     
-
-### Flutter中自定义View的流程？
-
-1. 已有控件（widget）的继承，组合。
-2. 自定义绘制widget,也就是利用paint，cavans等进行绘制自定义视图。
-
-
-
 ### 什么是状态管理？你了解那些状态管理框架？
 
 1. 状态管理是声明式编程中一个重要的概念，Flutter也是声明式编程的，
 2. Flutter采用现代响应式框架构建，其中心思想是使用组件来构建应用的UI，组件最重要的概念就是状态，状态是一个组件的UI数据模型，是组件渲染时的数据依据。
 3. Flutter的状态管理可以分成两大类：应用状态（全局状态）和短时状态（局部状态）。
-4. 常用的状态管理框架有：Redux 、BLoC、Provider、Getx等等。
+4. 常用的状态管理框架有：InheritedWidget、Redux 、BLoC、Provider、Getx等等。
+
+
+
+### 有用过InheritedWidget吗？
+
+1. 我们在进行Flutter开发时，经常会遇到数据传递的问题。我们可能会逐级逐级一层一层传递，由于Widget 树的关系，Widget层级可以做得非常深，在这些层级间传递数据会让效率变得很低。也可能在某一层widget不需要这些数据，但是在下一层会使用的这些数据，造成了不需要数据的widget却也持有数据，显得冗余且不优雅。
+
+2. Flutter提供了InheritedWidget这样一个功能型组件，它提供了一种在 widget 树中从上到下共享数据的方式，即在父widget 中通过InheritedWidget共享了一个数据，那么在任意子widget都能获取该共享的数据。
+
+3. 平时我们使用的MediaQuery.of(context)、Theme.of(context)，都是使用InheritedWidget来实现数据共享的。
+
+4. InheritedWidget使用方式
+
+   + 定义一个共享数据的MyInheritedWidget，该类需要继承自InheritedWidget。
+
+     + 继承InheritedWidget类时，需要实现一个updateShouldNotify方法，该方法是比较新旧MyInheritedWidget的数据来判断是否需要更新相关依赖的Widget。
+
+     + 定义了一个of方法，该方法通过context开始去查找祖先的MyInheritedWidget。
+
+   + 使用MyInheritedWidget，可以将MyInheritedWidget放在需要共享数据的共同父Widget上，此时就可以进行数据共享了。
 
 
 
@@ -830,7 +1164,7 @@
 
 2. 使用Provider.of方法，当数据更新时会直接调用使用Provider.of方法的Widge类的tbuild方法，这显然是不有好的。
 
-3. Consmer其实是对Provider.of的一个优化，默认情况下数据更新并不会调用Widge类的tbuild方法而是调用Consmer的build，有时候Consmer中的build并没有Widget依赖数据，肯能是更新而已，那其实也没必要更新build中的child这时官网又提出了优化，将child换一种方式写
+3. Consmer其实是对Provider.of的一个优化，默认情况下数据更新并不会调用Widge类的tbuild方法而是调用Consmer的build，有时候Consmer中的build并没有Widget依赖数据，肯能是更新而已，那其实也没必要更新build中的child这时官网又提出了优化，将child换一种方式写。
 
    ```dart
    // 原版
@@ -851,8 +1185,6 @@
    ```
 
 4. Selector其实是一个最终改良版，能够更好的控件视图是否需要更新，通过shouldRebuild方法来抉择，同时Selector功能也很强大可以将Avm通过selector函数一些列处理变成Bvm。
-
-
 
 
 
@@ -935,21 +1267,268 @@
 
      
 
+### 什么是Route和Navigator? 如何通过Navigator管理路由？
+
+1. 在Flutter中页面与页面或者是页面和导航之间的关系维护/页面管理，我们通常会使用路由进行统一管理。无论路由的概念如何其实底层都是维护了一个路由表，在Flutter中，路由管理主要有两个类：Route和Navigator。
+
+   
+
+2. Route：一个页面想要被路由统一管理，就必须被包装成一个Route，Route是一个抽象类，里面没有也没有工厂方法，所以它是不能实例化的。
+
+   + 在开发中我们有几个常用的Route的间接子类，MaterialPageRoute（使用的较多一点）和CupertinoPageRoute以及PageRouteBuilder。
+     + MaterialPageRoute在不同的平台有不同的表现。
+       + 对Android平台，打开一个页面会从屏幕底部滑动到屏幕的顶部，关闭页面时从顶部滑动到底部消失。
+       + 对iOS平台，打开一个页面会从屏幕右侧滑动到屏幕的左侧，关闭页面时从左侧滑动到右侧消失。
+     + CupertinoPageRoute：iOS平台默认使用的CupertinoPageRoute。
+     + PageRouteBuilder： 是一个用于自定义页面过渡动画的小部件，它可以让开发者根据自己的需求创建各种自定义过渡动画。
+
+   
+
+3. Navigator是管理所所有Route的Widget，通过一个Stack（FILO）来进行管理的。
+
+   + 我们开发中使用的MaterialApp、CupertinoApp、WidgetsApp它们默认是有插入Navigator的，所以我们在需要的时候，只需要直接使用即可。
+
+     ```dart
+     /// 通过InheritedWidget方式进行管理
+     Navigator.of(context)
+     ```
+
+   
+
+4. Navigator管理路由方式（命名路由）
+
+   + 在MaterialApp的 initialRoute 和 routes中进行管理
+     + initialRoute：初始路由，设置了该属性，就不需要再设置home属性了。
+     + routes：定义名称和路由之间的映射关系，类型为Map<String, WidgetBuilder>。
+     + onGenerateRoute：我们通过pushNamed进行跳转，但是对应的name没有在routes中有映射关系，那么就会执行onGenerateRoute钩子函数。
+     + onUnknownRoute：如果我们打开的一个路由名称是根本不存在，这个时候我们希望跳转到一个统一的错误页面。
 
 
-### Flutter如何和Android与IOS通信？
 
-1. Flutter主要是通过plateformChannel与原生进行交互，其中plateformChannel又分成三种：
-   + BasicMessageChannel：用于传递字符串和半结构化的信息。
+### 有了解Flutter混合开发吗？
+
+1. Flutter的设计初衷并不是为了和其他平台项目进行混合开发，而是为了打造一个完整的跨平台应用程序，实际开发中，原有项目完全使用Flutter进行重构并不现实，对于原有项目我们更多可能采用混合开发的方式，混合开发目前有两种形式：Flutter调用原生能力和将Flutter项目嵌入到原生中。
+
+   
+
+2. Flutter调用原生能力，Flutter主要是通过plateformChannel与原生进行交互（注意plateformChannel并非是线程安全的），其中plateformChannel又分成三种：
+
    + MethodChannel：用于传递方法调用（methods invocation）。
+
+     + Flutter端代码
+
+       ```dart
+       /// 注册通道
+       final MethodChannel _methodChannel = MethodChannel("ilovesshan.com/communication");
+       
+       /// 监听原生调用Flutter方法
+       _methodChannel.setMethodCallHandler((call) async {
+           if (call.method == "getCurrentTime") {
+               dynamic arguments = call.arguments;
+               return DateTime.now();
+           }
+       });
+       
+       /// Flutter调用原生方法
+       dynamic result = await _methodChannel.invokeMethod("getCurrentTime","message");
+       print(result);
+       ```
+       
+       
+       
+     + Android端代码（Java）
+
+       ```java
+       public class MainActivity extends FlutterActivity {
+           // 重写configureFlutterEngine方法
+           @Override
+           public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+               // 创建MethodChannel对象
+               MethodChannel methodChannel = new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), "ilovesshan.com/communication");
+       
+               // Flutter调用Android端方法
+               methodChannel.setMethodCallHandler((call, result) -> {
+                   if ("getCurrentTime".equals(call.method)) {
+                       result.success(new Date().toString());
+                   } else {
+                       result.notImplemented();
+                   }
+               });
+           }
+       }
+       
+       
+       // Android端调用 Flutter方法
+       methodChannel.invokeMethod("getCurrentTime", "android invoke flutter", new MethodChannel.Result() {
+           @Override
+           public void success(@Nullable Object result) {
+               Log.d(TAG, "Android端调用 Flutter方法 success: " + result);
+           }
+       
+           @Override
+           public void error(String errorCode, @Nullable String errorMessage, @Nullable Object errorDetails) {
+               Log.d(TAG, "Android端调用 Flutter方法 error: " + errorMessage);
+           }
+       
+           @Override
+           public void notImplemented() {
+               Log.d(TAG, "Android端调用 Flutter方法 notImplemented ");
+           }
+       });
+       ```
+
+       
+
+   + BasicMessageChannel：用于传递字符串和半结构化的信息。
+
    + EcventChannel：用于数据流的通信（event stream）。
-2. 注意：plateformChannel并非是线程安全的。
 
+     
 
+3. 将Flutter项目嵌入到原生中。
+
+   + 参考链接：
+
+     + 将 Flutter module 集成到 Android 项目：https://flutter.cn/docs/add-to-app/android/project-setup
+     + 将 Flutter module 集成到 iOS 项目：https://flutter.cn/docs/add-to-app/ios/project-setup
+
+     
+
+   + 将 Flutter module 集成到 Android 项目（依赖模块的源码）方式：
+
+     +  创建 Flutter 模块
+
+       ```dart
+       flutter create -t module --org com.example my_flutter
+       ```
+
+       
+
+     + 通过Android Studio创建一个Android项目，确保Android项目和Flutter Module在同级目录。
+
+       
+
+     + 将 Flutter 模块作为子项目添加到宿主应用的 `settings.gradle` 中：
+
+       ```groovy
+       // Include the host app project.
+       include ':app'                                    // assumed existing content
+       setBinding(new Binding([gradle: this]))                                // new
+       evaluate(new File(                                                     // new
+           settingsDir.parentFile,                                              // new
+           'my_flutter/.android/include_flutter.groovy'                         // new
+       ))                                                                     // new
+       ```
+
+     + 在你的应用中引入对 Flutter 模块的依赖
+
+       ```groovy
+       dependencies {
+           implementation project(':flutter')
+       }
+       ```
+
+       
+
+     + Flutter提供了一个FlutterActivity来展示Flutter界面在Android应用程序中，我们需要先对FlutterActivity进行注册，并且在src/main/res/values/themes.xml文件中添加主题资源。
+
+       ```xml
+       <activity
+                 android:name="io.flutter.embedding.android.FlutterActivity"
+                 android:theme="@style/AppTheme"
+                 android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                 android:hardwareAccelerated="true"
+                 android:windowSoftInputMode="adjustResize"
+                 />
+       ```
+
+       ```xml
+       <resources xmlns:tools="http://schemas.android.com/tools">
+           <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+               <!-- Show a splash screen on the activity. Automatically removed when
+                    Flutter draws its first frame -->
+               <item name="android:windowBackground">@drawable/ic_launcher_foreground</item>
+               <item name="android:windowFullscreen">true</item>
+           </style>
+       </resources>
+       ```
+
+       
+
+     + 加载 FlutterActivity。
+
+       + 打开一个默认 Flutter 初始路由（”/“）的 FlutterActivity。
+
+         ```dart
+         myButton.setOnClickListener(new OnClickListener() {
+             @Override
+             public void onClick(View v) {
+                 startActivity(  FlutterActivity.createDefaultIntent(currentActivity));
+             }
+         });
+         
+         ```
+
+         
+
+       + 打开一个自定义 Flutter 初始路由的 FlutterActivity。
+
+         ```java
+         myButton.addOnClickListener(new OnClickListener() {
+             @Override
+             public void onClick(View v) {
+                 startActivity(
+                     FlutterActivity .withNewEngine() .initialRoute("/my_route").build(currentActivity)
+                 );
+             }
+         });
+         
+         ```
+
+         
+
+     + 踩坑
+
+       + 关于Binding依赖问题，如果你的项目采用grade7.1x之后的版本直接导入一下依赖即可
+
+         ```java
+         import org.gradle.api.initialization.resolve.RepositoriesMode
+         ```
+
+       + 如果启动时报错Failed to apply plugin class ‘FlutterPlugin’，打开Android project的settings.gradle：
+
+         ```groovy
+         // 修改前：repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+         // 修改后：repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+         ```
+
+         ```groovy
+         dependencyResolutionManagement {
+             repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+             repositories {
+                 google()
+                 mavenCentral()
+                 jcenter() // Warning: this repository is going to shut down soon
+             }
+         }
+         ```
+
+       + 如果还是报错，xxx依赖找不到（下载不下来），打开Android project的build.gradle增加如下设置
+
+         ```groovy
+         allprojects {
+             repositories {
+                 google()
+                 jcenter()
+             }
+         }
+         ```
+
+       
 
 ### 简述Flutter热重载？
 
-1. Flutter 的热重载是基于 JIT 编译模式的代码增量同步。由于 JIT 属于动态编译，能够将 Dart 代码编译成生成中间代码，让 Dart VM 在运行时解释执行，因此可以通过动态更新中间代码实现增量同步。
+1. Flutter 的热重载是基于 JIT 编译模式的代码增量同步。由于 JIT 属于动态编译，能够将 Dart 代码编译成生成中间代码，让 Dart VM 在运行时解释执行。
 2. 热重载的流程可以分为 5 步，包括：扫描工程改动、增量编译、推送更新、代码合并、Widget 重建。Flutter 在接收到代码变更后，并不会让 App 重新启动执行，而只会触发 Widget 树的重新绘制，因此可以保持改动前的状态，大大缩短了从代码修改到看到修改产生的变化之间所需要的时间。
 3. 另一方面，由于涉及到状态的保存与恢复，涉及状态兼容与状态初始化的场景，热重载是无法支持的，如改动前后 Widget 状态无法兼容、全局变量与静态属性的更改、main 方法里的更改、initState 方法里的更改、枚举和泛型的更改等。
 4. 可以发现，热重载提高了调试 UI 的效率，非常适合写界面样式这样需要反复查看修改效果的场景。但由于其状态保存的机制所限，热重载本身也有一些无法支持的边界。
@@ -1017,3 +1596,142 @@
 
 1. 平台化是组件化的升级，即在组件化的基础上，对它们提供的功能进行分类，统一分层划分，增加依赖治理的概念。
 2. 与组件化更关注组件的独立性相比，平台化更关注的是组件之间关系的合理性，而这也是在设计平台化架构时需要重点考虑的单向依赖原则。
+
+
+
+### Flutter发布Android应用流程？
+
+1. 发布Android版APP参考地址：https://doc.flutterchina.club/android-release/
+
+2. 添加应用配置文件信息
+
+   + APP版本号
+     + 1.0.0+1  -->  主版本.次版本.补丁版本 + 内部维护版本
+     + 主版本（major version）：软件整体重写，或出现不向后兼容的改变时增加此版本。
+     + 次版本（minor version）：出现新功能时增加此版本。
+     + 补丁版本（patch version）：如修复bug，只要有修改就增加此版本。
+     + 内部维护版本：主要是给开发人员使用。
+   + APP名称和启动图标
+   + APP运行时权限（注意android6【API 23】之后部分权限需要动态申请）
+
+   
+
+3. 创建并配置应用签名
+
+   + 创建 app签名keystore(jks)文件，keytool是jdk带的工具。
+
+     ```
+     keytool -genkey -v -keystore /D:/key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias key
+     ```
+
+     
+
+   + 配置签名
+
+     + android目录下build.gradle同级目录下创建一个名为key.properties的文件。
+
+       ```
+       storePassword=123456
+       keyPassword=123456
+       keyAlias=key
+       storeFile=D:/key.jks
+       ```
+
+     + android/app/build.gradle文件为您的应用配置签名.
+
+       + 在android{}同级目录添加如下配置。
+
+         ```groovy
+         def keystorePropertiesFile = rootProject.file("key.properties")
+         def keystoreProperties = new Properties()
+         keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+         
+         android {}
+         ```
+
+         
+
+       + buildType同级做如下修改，增加signingConfigs。
+
+         ```groovy
+         signingConfigs {
+             release {
+                 keyAlias keystoreProperties['keyAlias']
+                 keyPassword keystoreProperties['keyPassword']
+                 storeFile file(keystoreProperties['storeFile'])
+                 storePassword keystoreProperties['storePassword']
+             }
+         }
+         buildTypes {
+             release {
+                 signingConfig signingConfigs.release
+             }
+         }
+         ```
+
+         
+
+4. 开启混淆，默认情况下 flutter 不会开启 Android 的混淆。如果使用了第三方 Java 或 Android 库，也许你想减小 apk 文件的大小或者防止代码被逆向破解。
+
+   + 创建 `/android/app/proguard-rules.pro` 文件，并添加以下规则：
+
+     ```groovy
+     #Flutter Wrapper
+     -keep class io.flutter.app.** { *; }
+     -keep class io.flutter.plugin.**  { *; }
+     -keep class io.flutter.util.**  { *; }
+     -keep class io.flutter.view.**  { *; }
+     -keep class io.flutter.**  { *; }
+     -keep class io.flutter.plugins.**  { *; }
+     ```
+
+   + 开启混淆/压缩，上述配置只混淆了 Flutter 引擎库，任何其他库（比如 Firebase）需要添加与之对应的规则，打开 `/android/app/build.gradle` 文件，定位到 `buildTypes` 块。在 `release ` 配置中将 `minifyEnabled ` 和 `useProguard ` 设为 `true`，再将混淆文件指向上一步创建的文件。
+
+     ```groovy
+     android {
+         buildTypes {
+             release {
+                 signingConfig signingConfigs.release
+                 minifyEnabled true
+                 useProguard true
+                 proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+     
+             }
+         }
+     }
+     ```
+
+     
+
+5. 将用于打包成APK文件ARB文件
+
+   + 打包成APK（Android Package）
+
+     ```dart
+     flutter build apk
+     ```
+
+   + 打包成AAB（Android App Bundles）
+
+     ```dart
+     flutter build appbundle
+     ```
+
+   + APK和AAB区别
+
+     + AAB包进行安装时会新针对不同设备的支持重新打包成apk文件，比如对应小米手机的apk包，就只包含小米手机的支持内容，而不再带有三星手机支持，动态打包仅打包所需资源。
+     + aab格式的包不能直接通过aab包的形式安装到手机，APK可以直接安装到手机。
+     + 大部分由于市场支持APK，而少部分支持AAB。
+
+   
+
+6. 发布应用市场
+
+   + 国内应用市场很多：华为、360、小米等等等
+
+
+
+### Flutter发布Ios应用流程？
+
+发布IOS版APP参考地址：https://doc.flutterchina.club/ios-release/
+

@@ -740,8 +740,10 @@ Dart是一门面向对象（允许单继承）、垃圾回收的编程语言，�
 1. 垃圾回收器是Dart运行过程中非常重要的一个组件，它主要分组Dart内存分配（对象被实例化 instantiated）和垃圾回收（对象处于不可达状态unreachable）。
 2. 内存分配
    + DartVM内存分配策略比较简单，创建对象只需要在堆上面移动指针即可，内存增长是呈线性的。省去了查找可以内存的步骤。
+3. 调度安排（Scheduling）
+   + 为了减少GC最小化对APP和UI性能的影响，GC对Flutter引擎提供了hooks，当Flutter引擎侦测到App处于空闲时期且没有UI交互时，这时候就给GC一个空窗期来运行，并且不会影响性能，GC还可以在那些空闲间隔内进行滑动压缩（sliding compaction），从而通过减少内存碎片来最大程度地减少内存开销。
 3. 垃圾回收
-   + Dart的GC是分代的（*generational*）和由两个阶段构成：the young space scavenger（年轻袋） and parallel mark sweep collectors（老一代）
+   + Dart的GC是分代的（*generational*），由两个阶段构成：the young space scavenger（针对年轻一袋进行回收）和 parallel mark sweep collectors（针对老一代进行回收）。
    + Young Space Scavenger
      + 这个阶段主要是清理一些寿命很短的对象，比如StatelessWidget。
      + 为了确定哪些Object是存活或死亡的，GC从根对象开始检测它们的应用。然后将有引用的Object（存活的）移动到非活动状态，死亡的Object就被留下。
