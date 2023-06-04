@@ -93,40 +93,42 @@ export default {
         children: [
           {
             text: '前端', children: [
-              { text: 'HTML', link: '/pages/Interview-question/html.md' },
-              { text: 'CSS', link: '/pages/Interview-question/css.md' },
-              { text: 'JavaScript', link: '/pages/Interview-question/javascript.md' },
-              { text: 'Vue2', link: '/pages/Interview-question/vue2.md' },
-              { text: 'Vue3', link: '/pages/Interview-question/vue3.md' },
-              { text: 'TypeScript', link: '/pages/Interview-question/typescript.md' },
-              { text: 'Pinia', link: '/pages/Interview-question/pinia.md' },
+              { text: 'HTML', link: '/pages/interview-question/html.md' },
+              { text: 'CSS', link: '/pages/interview-question/css.md' },
+              { text: 'JavaScript', link: '/pages/interview-question/javascript.md' },
+              { text: 'Vue2', link: '/pages/interview-question/vue2.md' },
+              { text: 'Vue3', link: '/pages/interview-question/vue3.md' },
+              { text: 'TypeScript', link: '/pages/interview-question/typescript.md' },
+              { text: 'Pinia', link: '/pages/interview-question/pinia.md' },
             ]
           },
           {
             text: '移动端', children: [
-              { text: 'Android', link: '/pages/Interview-question/android.md' },
-              { text: 'Dart', link: '/pages/Interview-question/dart.md' },
-              { text: 'Flutter', link: '/pages/Interview-question/flutter.md' },
-              { text: '小程序', link: '/pages/Interview-question/mp.md' },
+              { text: 'Android', link: '/pages/interview-question/android.md' },
+              { text: 'Dart', link: '/pages/interview-question/dart.md' },
+              { text: 'Flutter', link: '/pages/interview-question/flutter.md' },
+              { text: '小程序', link: '/pages/interview-question/mp.md' },
             ]
           },
           {
             text: 'Java', children: [
-              { text: 'JavaSE', link: '/pages/Interview-question/javase.md' },
-              { text: 'MySQL', link: '/pages/Interview-question/mysql.md' },
-              { text: 'SSM', link: '/pages/Interview-question/ssm.md' },
-              { text: 'RabbitMQ', link: '/pages/Interview-question/rabbitmq.md' },
-              { text: 'ElasticSearch', link: '/pages/Interview-question/elasticsearch.md' },
-              { text: 'SpringBoot', link: '/pages/Interview-question/springboot.md' },
-              { text: 'SpringCloud', link: '/pages/Interview-question/springcloud.md' },
+              { text: 'JavaSE', link: '/pages/interview-question/javase.md' },
+              { text: 'MySQL', link: '/pages/interview-question/mysql.md' },
+              { text: 'SSM', link: '/pages/interview-question/ssm.md' },
+              { text: 'Redis', link: '/pages/interview-question/redis.md' },
+              { text: 'RabbitMQ', link: '/pages/interview-question/rabbitmq.md' },
+              { text: 'ElasticSearch', link: '/pages/interview-question/elasticsearch.md' },
+              { text: 'SpringBoot', link: '/pages/interview-question/springboot.md' },
+              { text: 'SpringCloud', link: '/pages/interview-question/springcloud.md' },
             ]
           },
+          { text: '网络安全', link: '/pages/interview-question/networksecurity.md' },
           {
             text: '工具集', children: [
-              { text: 'Git', link: '/pages/Interview-question/git.md' },
-              { text: 'Docker', link: '/pages/Interview-question/docker.md' },
-              { text: 'Linux', link: '/pages/Interview-question/linux.md' },
-              { text: 'Maven', link: '/pages/Interview-question/maven.md' },
+              { text: 'Git', link: '/pages/interview-question/git.md' },
+              { text: 'Docker', link: '/pages/interview-question/docker.md' },
+              { text: 'Linux', link: '/pages/interview-question/linux.md' },
+              { text: 'Maven', link: '/pages/interview-question/maven.md' },
             ]
           },
         ]
