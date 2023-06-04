@@ -4,11 +4,13 @@
 
 Dart是一门面向对象（允许单继承）、垃圾回收的编程语言，它由google公司维护。
 
+
+
 ### flutter为什么推荐使用Dart语言？
 
 1. Flutter将Dart作为首选语言的原因：
    + Dart是AOT（ahead of time）运行前编译，使用AOT语言的优点就是使Flutter具有更好的性能。
-   + Dart也可以通过JIR（just in time）即时编译，典型应用就是Flutter的热重载。
+   + Dart也可以通过JIT（just in time）即时编译，典型应用就是Flutter的热重载。
    + Dart也允许FLutter使用JSX或者XML之类的作为界面构建的声明语言，这使得程序更易阅读和理解。
 
 
