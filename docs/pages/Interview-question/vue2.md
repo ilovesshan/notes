@@ -18,7 +18,7 @@
 
 
 
-### vue中常用的修饰符？
+### Vue中常用的修饰符？
 
 1. .stop：等同于 JavaScript 中的 event.stopPropagation() ，防止事件冒泡。
 2. .prevent：等同于 JavaScript 中的event.preventDefault()，阻止事件传播。
@@ -73,7 +73,7 @@
 
 
 
-### vue中强制覆盖第三方css的方式？
+### Vue中强制覆盖第三方css的方式？
 
 1. 覆盖三方样式有三种方式： `>>>` 、`/deep/`、`::v-deep`、`！important`
 2. 如果你希望 scoped 样式中的一个选择器能够作用得“更深”，例如影响子组件，你可以使用 `>>>` 操作。
@@ -84,7 +84,7 @@
 
 ### keep-alive的作用是什么？
 
-1. keep-alive作为一种vue的内置组件，主要作用是缓存组件状态。当需要组件的切换时，不用重新渲染组件，避免多次渲染，就可以使用keep-alive包裹组件。
+1. keep-alive作为一种Vue的内置组件，主要作用是缓存组件状态。当需要组件的切换时，不用重新渲染组件，避免多次渲染，就可以使用keep-alive包裹组件。
 
 2. props属性
 
@@ -106,7 +106,7 @@
 
 
 
-### 列举几种vue中的指令和它的用法
+### 列举几种Vue中的指令和它的用法
 
 1. v-model：对数据进行双向绑定。
 2. v-on：添加事件监听。
@@ -118,9 +118,9 @@
 
 
 
-### vue-loader是什么？它的用途是什么？
+### Vue-loader是什么？它的用途是什么？
 
-1. vue-loader：Vue文件的加载器，它可以解析和转换.vue文件。提取出其中的逻辑代码 script,样式代码style,以及HTML 模板template，再分别把他们交给对应的loader去处理。
+1. Vue-loader：Vue文件的加载器，它可以解析和转换.Vue文件。提取出其中的逻辑代码 script,样式代码style,以及HTML 模板template，再分别把他们交给对应的loader去处理。
 2. 用途是降级: 
    + js可以写es6。
    + style样式可以写scss或less。
@@ -154,16 +154,16 @@
 
 
 
-### vue在双向数据绑定是如何实现的？
+### Vue在双向数据绑定是如何实现的？
 
-1. vue双向数据绑定是通过数据劫持、组合、发布订阅模式的方式来实现的，也就是说数据和视图同步。数据发生变化，视图跟着变化，视图变化，数据也随之发生改变。
-2. 核心实现，关于vue双向数据绑定
+1. Vue双向数据绑定是通过数据劫持、组合、发布订阅模式的方式来实现的，也就是说数据和视图同步。数据发生变化，视图跟着变化，视图变化，数据也随之发生改变。
+2. 核心实现，关于Vue双向数据绑定
    + Vue2.0：其核心是Object.defineProperty()方法。
    + Vue3.0：其核心是Proxy 方法。
 3. Vue3为什么使用Proxy？
    + defineProperty缺陷：
      + 不能监听数组变化。
-     + 只能劫持对象的属性（给对象添加属性vue无法检测到）。
+     + 只能劫持对象的属性（给对象添加属性Vue无法检测到）。
    + Proxy的好处：
      + proxy可以直接监听数组的变化。
      + proxy可以监听对象而非属性.它在目标对象之前架设一层“拦截”，因此提供了一种机制，可以对外界的访问进行过滤和改写。proxy直接劫持一个对象，并且会返回一个新对象。
@@ -193,26 +193,26 @@
 
 
 
-### vue更新数组时触发视图更新的方法？
+### Vue更新数组时触发视图更新的方法？
 
 1. push()、pop()、shift()、unshift()、splice()、sort()、reverse()。
 
 
 
-### 什么是 vue 生命周期？有什么作用？
+### 什么是 Vue 生命周期？有什么作用？
 
 1. 每个 Vue 实例在被创建时都要经过一系列的初始化过程——例如，需要设置数据监听、编译模板、将实例挂载到 DOM 并在数据变化时更新 DOM 等。
 2. 同时在这个过程中也会运行一些叫做 生命周期钩子 的函数，这给了用户在不同阶段添加自己的代码的机会。
 
 
 
-### vue生命周期的理解？
+### Vue生命周期的理解？
 
 1. 总共分为8个阶段创建前/后，载入前/后，更新前/后，销毁前/后。
-2. 创建前/后： 在beforeCreated阶段，vue实例的挂载元素el还没有。
-3. 载入前/后：在beforeMount阶段，vue实例的$el和data都初始化了，但还是挂载之前为虚拟的dom节点，data.message还未替换。在mounted阶段，vue实例挂载完成，data.message成功渲染。
+2. 创建前/后： 在beforeCreated阶段，Vue实例的挂载元素el还没有。
+3. 载入前/后：在beforeMount阶段，Vue实例的$el和data都初始化了，但还是挂载之前为虚拟的dom节点，data.message还未替换。在mounted阶段，Vue实例挂载完成，data.message成功渲染。
 4. 更新前/后：当data变化时，会触发beforeUpdate和updated方法。
-5. 销毁前/后：在执行destroy方法后，对data的改变不会再触发周期函数，说明此时vue实例已经解除了事件监听以及和dom的绑定，但是dom结构依然存在。
+5. 销毁前/后：在执行destroy方法后，对data的改变不会再触发周期函数，说明此时Vue实例已经解除了事件监听以及和dom的绑定，但是dom结构依然存在。
 
 
 
@@ -223,9 +223,9 @@
 
 
 
-### vuex是什么？vuex有哪几种属性？
+### Vuex是什么？Vuex有哪几种属性？
 
-1. vuex是vue框架中状态管理，vuex中有五种属性：
+1. Vuex是Vue框架中状态管理，Vuex中有五种属性：
    + state：基本数据(数据源存放地)。
    + getters：从基本数据派生出来的数据。
    + mutations： 提交更改数据的方法，同步。
@@ -236,16 +236,16 @@
 
 ### v-if 和v-for优先级？
 
-1. 在vue2中应尽量避免二者同时使用
+1. 在Vue2中应尽量避免二者同时使用
    + 当 `v-if` 与 `v-for` 一起使用时，`v-for` 具有比 `v-if` 更高的优先级。
    + Vue2官方推荐的写法：采用计算属性去生成你要遍历的数组， 在computed里先做好判断，这里过滤的成本远比v-if的成本低。
-2. 在vue3中
+2. 在Vue3中
    + 当 `v-if` 与 `v-for` 一起使用时，`v-if` 具有比 `v-for` 更高的优先级。
-   + 在vue3中官方推荐的写法：把 v-for 移动到容器元素上,例如ul,ol 或者外面包裹一层 template。
+   + 在Vue3中官方推荐的写法：把 v-for 移动到容器元素上,例如ul,ol 或者外面包裹一层 template。
 
 
 
-### vue 事件中如何使用 event 对象?
+### Vue 事件中如何使用 event 对象?
 
 1. 获取事件对象，方法参数传递 $event 。注意在事件中要使用 $ 符号。
 
@@ -301,15 +301,15 @@
 ### delete和Vue.delete删除数组的区别？
 
 1. delete： delete会删除数组的值（变成了empty），但是它依然会在内存中占位置。
-2. Vue.delete：vue.delete会删除数组在内存中的占位。
+2. Vue.delete：Vue.delete会删除数组在内存中的占位。
 
 
 
 ### Vuex 页面刷新数据丢失怎么解决？
 
-1. 需要做 vuex 数据持久化，一般使用本地储存的方案来保存数据，可以自己设计存储方案，也可以使用第三方插件。
+1. 需要做 Vuex 数据持久化，一般使用本地储存的方案来保存数据，可以自己设计存储方案，也可以使用第三方插件。
 2. 持久化方案
-   + 三方插件： vuex-persist，它是为 Vuex 持久化储存而生的一个插件。不需要你手动存取 storage，而是直接将状态保存至 cookie 或者 localStorage中。
+   + 三方插件： Vuex-persist，它是为 Vuex 持久化储存而生的一个插件。不需要你手动存取 storage，而是直接将状态保存至 cookie 或者 localStorage中。
    + 手动存储到cookie 、 localStorage或者sessionStorage中。
 
 
