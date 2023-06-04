@@ -163,7 +163,7 @@
 3. Vue3为什么使用Proxy？
    + defineProperty缺陷：
      + 不能监听数组变化。
-     + 只能劫持对象的属性（给对象添加属性Vue无法检测到）。
+     + 只能劫持对象的属性，给对象添加属性Vue无法检测到。
    + Proxy的好处：
      + proxy可以直接监听数组的变化。
      + proxy可以监听对象而非属性.它在目标对象之前架设一层“拦截”，因此提供了一种机制，可以对外界的访问进行过滤和改写。proxy直接劫持一个对象，并且会返回一个新对象。
@@ -209,8 +209,8 @@
 ### Vue生命周期的理解？
 
 1. 总共分为8个阶段创建前/后，载入前/后，更新前/后，销毁前/后。
-2. 创建前/后： 在beforeCreated阶段，Vue实例的挂载元素el还没有。
-3. 载入前/后：在beforeMount阶段，Vue实例的$el和data都初始化了，但还是挂载之前为虚拟的dom节点，data.message还未替换。在mounted阶段，Vue实例挂载完成，data.message成功渲染。
+2. 创建前/后： 在beforeCreated阶段，Vue实例的$el和data都没有。
+3. 载入前/后：在beforeMount阶段，Vue实例的$el和data都初始化了，但是$el还未进行挂载、data.message还未替换。在mounted阶段，Vue实例挂载完成，data.message成功渲染。
 4. 更新前/后：当data变化时，会触发beforeUpdate和updated方法。
 5. 销毁前/后：在执行destroy方法后，对data的改变不会再触发周期函数，说明此时Vue实例已经解除了事件监听以及和dom的绑定，但是dom结构依然存在。
 
@@ -271,16 +271,16 @@
 
 ### route和router的区别?
 
-1. route是路由信息对象，包括path，params，hash，query，fullPath，matched，name等路由信息参数。
-2. router是路由实例：对象包括了路由的跳转方法，钩子函数等
+1. route是路由信息对象，包括path，params，hash，query，fullPath，matched，name等路由信息参数，用来获取路由信息。
+2. router是路由实例：是一个全局的路由器对象，用来进行路由跳转和操作路由，对象包括了路由的跳转方法，钩子函数等。
 
 
 
 ### params和query的区别？
 
-1. params是路由的一部分,必须要在路由后面添加参数名。query是拼接在url后面的参数，没有也没关系。
+1. params是路由的一部分，必须要在路由后面添加参数名，query是拼接在url后面的参数，没有也没关系。
 2. query要用path来引入，params要用name来引入。
-3. query刷新不会丢失query里面的数据 params刷新 会 丢失 params里面的数据。
+3. query刷新不会丢失query里面的数据，而params刷新会丢失params里面的数据。
 
 
 
@@ -300,7 +300,7 @@
 
 ### delete和Vue.delete删除数组的区别？
 
-1. delete： delete会删除数组的值（变成了empty），但是它依然会在内存中占位置。
+1. delete： delete删除数组的值（变成了empty），但是它依然会在内存中占位置。
 2. Vue.delete：Vue.delete会删除数组在内存中的占位。
 
 
@@ -347,5 +347,5 @@
 
 ### SPA首屏加载慢如何解决？
 
-1. 安装动态懒加载所需插件；
+1. 安装动态懒加载所需插件。
 2. 使用CDN资源。
