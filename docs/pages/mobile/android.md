@@ -5112,3 +5112,50 @@ public class ToastUtil {
 
 ```
 
+
+
+### 9、SQLiteHelper
+
+```java
+package com.school.uurun.utils;
+
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import androidx.annotation.Nullable;
+
+/**
+ * 数据库连接工具
+ */
+public class SQLiteHelper extends SQLiteOpenHelper {
+    private Context context;
+
+    public SQLiteHelper(@Nullable Context context) {
+        super(context, "uurun.db", null, 1);
+        this.context = context;
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        // 用户表
+        db.execSQL("CREATE TABLE t_user(\n" +
+                   "    id varchar(32), -- 主键ID\n" +
+                   "    account  varchar(255), -- 账户\n" +
+                   "    password varchar(255), -- 密码\n" +
+                   "    nickname varchar(255), -- 昵称\n" +
+                   "    user_type varchar(1), -- 用户类型（1普通用户、2骑手）\n" +
+                   "    phone varchar(11) -- 手机号\n" +
+                   ");");
+
+        db.execSQL("insert into t_user values ('1B895BB4D3F74CC0ACC9E470984413EA', 'ilovesshan','123456','ilovesshan','1','14578532211');");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
+
+    }
+}
+
+```
+
