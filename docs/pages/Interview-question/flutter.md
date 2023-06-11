@@ -426,7 +426,7 @@ void setClipData(String text) {
 
 1. 在Flutter中key是一个抽象类，有两个直接子类：
 
-   + LocalKey ：主要是用于比较新旧Widget是否要更新或者删除，这个比较的过程采用了一个算法叫做Diff算法。
+   + LocalKey ：主要是用于比较新旧Widget是否要更新、新增、删除，这个比较的过程采用了一个算法叫做Diff算法。
    + GlobalKey：主要保存Widget、State或者是Element的引用，可以用于访问他们内部的信息或者调用内部的方法。
 
 
@@ -438,11 +438,17 @@ void setClipData(String text) {
 
 2. LocalKe中又分成三个常用的Key
 
-   + ValueKey：可以传入泛型作为Key的类型，一般情况传入例如：字符串、数字等等类型的key。
+   + ValueKey
 
-   + ObjectKey：内部采用Object类型来保存传入的Key，也就是我们可以将一个Object类型的值作为Key。
+     + 介绍：可以传入泛型作为Key的类型，一般情况传入例如：字符串、数字等等类型的key。
+     + 新旧ValueKey比较规则：内部维护了泛型类型的value属性，并实现了==和hashCode方法。只要两个ValueKey的value属性相等，那么就认为两个Key相等（相当于java的equals方法）。
 
-   + UniqueKey：生成一个唯一的KEey，本质通过hash生成的。
+   + ObjectKey：
+
+     + 内部采用Object类型来保存传入的Key，也就是我们可以将一个Object类型的值作为Key。
+     + 新旧ObjectKey比较规则：ObjectKey根据indentical方法（判断两个引用是否指向同一个对象）来判断两个ObjectKey是否相等的。
+
+   + UniqueKey：生成一个唯一的KEey，本质通过hash生成的，使用UniqueKe需要注意：UniqueKey如果不提前保存会导致State状态丢失。
 
      ```dart
      @override
@@ -978,9 +984,102 @@ void setClipData(String text) {
 
 
 
-### Context 、State概念？
+### BuildContext 到底是什么东西？
 
-1. Context：是已创建的Widget树中某个Widget位置引用（Element），一个context只从属于一个widget，它和widget一样是链接在一起的，并且会形成一个context树。
+1. BuildContext是什么？ 
+
+   + 首先BuildContext是一个抽象类，从源码可以得到。
+
+     ```dart
+     abstract class BuildContext {}
+     ```
+
+     
+
+   + 观察一下离BuildContext类最近的两行文档注释信息。
+
+     + [BuildContext] objects are actually [Element] objects：BuildContext对象实际上一个Element对象。
+     + The [BuildContext] interface is used to discourage direct manipulation of [Element] objects：BuildContext接口用于阻止直接操作Element对象。
+
+   
+
+2. BuildContext 用来干什么？
+
+   + 获取当前Widget对应的Element的信息，例如：Widget的大小，位置信息等等。
+
+     ```dart
+     /// 获取Element的大小
+     RenderBox? renderBox = (ctx as Element).findRenderObject() as RenderBox?;
+     print(renderBox!.size);
+     /// 获取Element的位置
+     Offset offset = renderBox.localToGlobal(Offset.zero);
+     print(offset);
+     ```
+
+     
+
+   + 用来代替setState函数，不推荐！！因为官方不推荐直接操作Element对象。
+
+     + 看过setState函数源码就会知道，setState内部最终做的就是：_element!.markNeedsBuild();
+
+       + markNeedsBuild()函数解释：将元素标记为脏元素，并将其添加到要在下一帧中重建的小部件的全局列表中。
+
+     + 我们不是也可以通过Buildcontext去获取对应Element吗？拿到Element不也可以调用markNeedsBuildhans函数？是的，完全没问题，但是这种办法不推荐！！
+
+       ```dart
+       (context as Element).markNeedsBuild();
+       ```
+
+   
+
+3. 实际开发中BuildContext的使用
+
+   + 这些方法应该不陌生，开发中用得比较多。
+
+     ```dart
+     Theme.of(context).primaryColor;
+     Navigator.of(context).pop();
+     Scaffold.of(context).openDrawer();
+     ```
+
+     
+
+   + 每个方法都需要传一个Context对象的背后原理？
+
+     + 先看关于Element身上的一些方法
+
+       ```dart
+       /// 从当前Element位置往上找，直到找到特定类型的Element（State）才停下
+       (context as Element).findAncestorStateOfType();
+       /// 从当前Element位置往上找，直到找到特定类型的Widget才停下，例如：InheritedWidget的应用
+       (context as Element).dependOnInheritedWidgetOfExactType();
+       ```
+
+     + 浅析一下Theme.of(context)和Navigator.of(context)源码
+
+       + Theme.of(context)，进入of方法中，观察最主要的一句
+
+         ```dart
+         /// 从当前Element位置往上找，直到找到InheritedTheme类型就Widget就停下且返回找到的Widget
+         final _InheritedTheme? inheritedTheme = context.dependOnInheritedWidgetOfExactType<_InheritedTheme>();
+         ```
+
+         
+
+       + Navigator.of(context)，看最关键的一句话
+
+         ```dart
+         /// 从当前Element位置往上找，直到找到NavigatorState类型就Element就停下且返回找到的Element（State）
+         navigator = navigator ?? context.findAncestorStateOfType<NavigatorState>();
+         ```
+
+     + 用of方法，主要是为了简化调用。
+
+
+
+### BuildContext 、State概念？
+
+1. BuildContext ：是已创建的Widget树中某个Widget位置引用（Element），一个context只从属于一个widget，它和widget一样是链接在一起的，并且会形成一个context树。
 
 2. State：State定义了statefulWidget实例的行为，包含了用于干预/交互Widget信息的行为和布局，应用于State的任何更改都会强制重新构建Widget。
 
@@ -1705,19 +1804,37 @@ void setClipData(String text) {
 
 5. 将用于打包成APK文件ARB文件
 
-   + 打包成APK（Android Package）
+   1. 自定义打包名称规则
+
+     ```groovy
+     android {
+         compileSdkVersion 30
+     
+         android.applicationVariants.all {
+             variant ->
+             variant.outputs.all {
+                 //在这里修改apk文件名
+                 outputFileName = "Floating-${variant.name}-v${variant.versionName}.apk"
+             }
+         }
+     }
+     ```
+
+     
+
+   2. 打包成APK（Android Package）
 
      ```dart
      flutter build apk
      ```
 
-   + 打包成AAB（Android App Bundles）
+   3. 打包成AAB（Android App Bundles）
 
      ```dart
      flutter build appbundle
      ```
 
-   + APK和AAB区别
+   4. APK和AAB区别
 
      + AAB包进行安装时会新针对不同设备的支持重新打包成apk文件，比如对应小米手机的apk包，就只包含小米手机的支持内容，而不再带有三星手机支持，动态打包仅打包所需资源。
      + aab格式的包不能直接通过aab包的形式安装到手机，APK可以直接安装到手机。
