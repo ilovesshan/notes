@@ -410,15 +410,59 @@
    });
    ```
 
+
+
+
+### 聊聊Fluter的布局约束概念？
+
+1. 在Flutter中布局采用：向下传递约束，向上传递尺寸的方式。
+   + 向下传递约束：由FrameWork层将当前设备宽高信息作为约束传递给RootWidget，紧接着RootWidget会将当当前计算约束布局（满足上级约束就传递自身约束，不满足的就传递上级约束）传到下一个Widget，依次类推。 
+   + 向上传递尺寸：子Widget会依次向上传递自己经过布局约束后计算出来的宽高，来确定最终Widget摆放位置。
+2. 松约束和紧约束区别：
+   + 松约束：最小约束等于0。
+   + 紧约束：最大约束和最小约束相等。
+3. uounded和unuounded区别：
+   + bounded：最大约不是infinity。
+   + unbounded：最大约束是infinity，例如：ListeView，SingleChildSrcollView。
+
+
+
+### Column和Stack中约束分配规则
+
+1. Column中约束分配规则
+
+   + Column中一般会出现两种Widget，分别是：弹性Widget（父组件是Flexible或者Expanded）和非弹性Widget（Text、Container、SizedBox等等）。
+   + Column受父Widget的布局约束，此时Column会将当前的布局约束优先传递给非弹性Widget，紧接着非弹性Widget会将自身的高度汇报给Column，然后由Column根据弹性Widget的Flex属性进行高度分配，最终Column会上报自身所占的尺寸。
+
    
+
+2. Stack约束分配规则
+
+   + Stack中一般会出现两种Widget，分别是：有位置的Widget（父组件是Positioned）无位置的Widget（Text、Container、SizedBox等等）。
+   + Stack约束分配分情况
+     + 仅存在有位置的Widget：那么Stack的约束布局会尽可能往大了占，因为只有尽可能大Positioned才有意义。
+     + 仅存在无位置的Widget：那么Stack的约束布局会根据无位置的Widget中最大的Widget来确定。
+     + 混合存在：混合存在和仅存在无位置的Widget类似，Stack的约束布局会根据无位置的Widget中最大的Widget来确定。
+   + Stack的fit属性
+     + Stack.loose：允许子Widget尽可能小（0 - Stack上限）。
+     + Stack.expend：允许子Widget尽可能大。
+     + Stack.passthrough:直接把上级布局约束传递下去。
+
+   
+
+3. 通过CustomMultiChildLayout实现自定义布局
+
+
 
 ### Flutter 如何实现复制到剪贴板？
 
-```dart
-void setClipData(String text) {
-    Clipboard.setData(ClipboardData(text: text));
-}
-```
+1. 直接调用API即可
+
+   ```dart
+   void setClipData(String text) {
+       Clipboard.setData(ClipboardData(text: text));
+   }
+   ```
 
 
 
